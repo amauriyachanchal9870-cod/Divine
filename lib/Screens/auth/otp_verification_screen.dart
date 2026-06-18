@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -20,6 +21,44 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   final List<TextEditingController> controllers = List.generate(4, (_) => TextEditingController());
   final List<FocusNode> focusNodes = List.generate(4, (_) => FocusNode());
   final AuthController authController = Get.put(AuthController());
+
+  Timer? _timer;
+  int _secondsRemaining = 30;
+  bool _canResend = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _secondsRemaining = 30;
+    _canResend = false;
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        if (_secondsRemaining > 0) {
+          _secondsRemaining--;
+        } else {
+          _canResend = true;
+          _timer?.cancel();
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    for (var controller in controllers) {
+      controller.dispose();
+    }
+    for (var node in focusNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,12 +114,33 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                     style: AppFonts.smallText.copyWith(color: AppTheme.textGrey500),
                     children: [
                       TextSpan(
-                        text: AppString.didntReceiveOtpResend.tr.split('?').length > 1 ? AppString.didntReceiveOtpResend.tr.split('?')[1].trim() : 'Resend',
+                        text: _canResend
+                            ? (AppString.didntReceiveOtpResend.tr.split('?').length > 1
+                                ? AppString.didntReceiveOtpResend.tr.split('?')[1].trim()
+                                : 'Resend')
+                            : 'Resend in ${_secondsRemaining}s',
                         style: AppFonts.smallText.copyWith(
-                          color: AppTheme.primaryDeepBlue,
+                          color: _canResend ? AppTheme.primaryDeepBlue : AppTheme.textGrey500,
                           fontWeight: FontWeight.bold,
                         ),
-                        recognizer: TapGestureRecognizer()..onTap = () {},
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = _canResend
+                              ? () async {
+                                  String phone = Get.arguments?['phone'] ?? "";
+                                  if (phone.isNotEmpty) {
+                                    bool success = await authController.resendOtp(context, phone);
+                                    if (success) {
+                                      for (var controller in controllers) {
+                                        controller.clear();
+                                      }
+                                      focusNodes[0].requestFocus();
+                                      _startTimer();
+                                    }
+                                  } else {
+                                    showSnackBar("Phone number is missing", false);
+                                  }
+                                }
+                              : null,
                       ),
                     ],
                   ),

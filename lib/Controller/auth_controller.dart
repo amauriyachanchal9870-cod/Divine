@@ -60,6 +60,38 @@ class AuthController extends GetxController {
     }
   }
 
+  Future<bool> resendOtp(BuildContext context, String phone) async {
+    isLoading = true;
+    update();
+
+    try {
+      final response = await Repositories().postApi(
+        context: context,
+        url: ApiUrls.resendOtpUrl,
+        mapData: {"phone": phone},
+        showResponse: true,
+      );
+
+      if (response != null) {
+        var jsonResponse = jsonDecode(response);
+        LoginModel loginModel = LoginModel.fromJson(jsonResponse);
+
+        if (loginModel.status == true) {
+          showSnackBar(loginModel.message ?? "OTP resent successfully", true);
+          return true;
+        } else {
+          showSnackBar(loginModel.message ?? "Something went wrong", false);
+        }
+      }
+    } catch (e) {
+      showSnackBar("Error: ${e.toString()}", false);
+    } finally {
+      isLoading = false;
+      update();
+    }
+    return false;
+  }
+
   Future<void> verifyOtp(BuildContext context, String phone, String otp) async {
     isLoading = true;
     update();
