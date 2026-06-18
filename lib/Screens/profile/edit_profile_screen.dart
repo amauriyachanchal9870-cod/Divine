@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/app_string.dart';
+import '../../Controller/profile_controller.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -14,6 +15,7 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  late TextEditingController _nameController;
   late TextEditingController _orgNameController;
   late TextEditingController _addressController;
   late TextEditingController _yearsController;
@@ -22,22 +24,49 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _aboutController;
 
   String _countryCode = "+91";
+  String _selectedGender = "Male";
 
   @override
   void initState() {
     super.initState();
-    _orgNameController = TextEditingController(text: "Green Earth Foundation");
-    _addressController = TextEditingController(text: "405, Meghmalhar CHS, CRYSTAL ARMUS, Narayan, Mumbai");
-    _yearsController = TextEditingController(text: "100");
-    _phoneController = TextEditingController(text: "7643547698");
-    _emailController = TextEditingController(text: "admin@gmail.com");
+    final ProfileController profileController = Get.put(ProfileController());
+    final p = profileController.profileData.value;
+
+    _nameController = TextEditingController(text: p?.name ?? "");
+    _orgNameController = TextEditingController(text: p?.organizationName ?? "Green Earth Foundation");
+    _addressController = TextEditingController(text: p?.registeredAddress ?? "405, Meghmalhar CHS, CRYSTAL ARMUS, Narayan, Mumbai");
+    _yearsController = TextEditingController(text: p?.impactStats ?? "100");
+    _emailController = TextEditingController(text: p?.email ?? "admin@gmail.com");
     _aboutController = TextEditingController(
-      text: "Since our founding over 100 years ago, we have changed the lives of over 1 billion children. We believe every child deserves a future. In more than 120 countries, we work every day to give children a healthy start in life."
+      text: (p?.impactStats != null && p!.impactStats!.isNotEmpty) ? p.impactStats : "Since our founding over 100 years ago, we have changed the lives of over 1 billion children. We believe every child deserves a future. In more than 120 countries, we work every day to give children a healthy start in life."
     );
+
+    String phoneVal = p?.phone ?? "";
+    if (phoneVal.startsWith("+")) {
+      final parts = phoneVal.split(" ");
+      if (parts.length > 1) {
+        _countryCode = parts[0];
+        _phoneController = TextEditingController(text: parts.sublist(1).join(" "));
+      } else {
+        if (phoneVal.startsWith("+91")) {
+          _countryCode = "+91";
+          _phoneController = TextEditingController(text: phoneVal.substring(3).trim());
+        } else {
+          _phoneController = TextEditingController(text: phoneVal);
+        }
+      }
+    } else {
+      _phoneController = TextEditingController(text: phoneVal.isEmpty ? "7643547698" : phoneVal);
+    }
+
+    if (p?.gender != null && p!.gender!.isNotEmpty) {
+      _selectedGender = p.gender!;
+    }
   }
 
   @override
   void dispose() {
+    _nameController.dispose();
     _orgNameController.dispose();
     _addressController.dispose();
     _yearsController.dispose();
@@ -92,7 +121,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              // Phone Input Field inside Bottom Sheet
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
@@ -134,7 +162,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              // Continue button
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -154,7 +181,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       );
                       return;
                     }
-                    Navigator.pop(context); // Close phone entry sheet
+                    Navigator.pop(context);
                     _showOtpBottomSheet(context, bottomCountryCode, bottomPhoneController.text);
                   },
                   child: Text(
@@ -174,7 +201,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final List<TextEditingController> otpControllers = List.generate(4, (_) => TextEditingController());
     final List<FocusNode> focusNodes = List.generate(4, (_) => FocusNode());
 
-    // Fill some demo text
     otpControllers[0].text = "2";
     otpControllers[1].text = "6";
     otpControllers[2].text = "0";
@@ -221,7 +247,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              // 4-Digit OTP Boxes
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: List.generate(4, (index) {
@@ -288,7 +313,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              // Continue button
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -299,7 +323,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     elevation: 0,
                   ),
                   onPressed: () {
-                    // Simple verify logic
                     String otp = otpControllers.map((c) => c.text).join();
                     if (otp.length < 4) {
                       Get.snackbar(
@@ -314,7 +337,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       _phoneController.text = number;
                       _countryCode = code;
                     });
-                    Navigator.pop(context); // Close OTP sheet
+                    Navigator.pop(context);
                     Get.snackbar(
                       AppString.success.tr, 
                       AppString.verificationSuccessful.tr, 
@@ -337,6 +360,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ProfileController profileController = Get.put(ProfileController());
+    final isDonor = profileController.profileData.value?.role == "donor";
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
@@ -365,18 +391,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 Center(
                   child: Stack(
                     children: [
-                      Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppTheme.greyBg100,
-                          border: Border.all(color: AppTheme.fieldBorderColor, width: 2),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.person_outline, size: 48, color: Colors.grey),
-                        ),
-                      ),
+                      Obx(() {
+                        final p = profileController.profileData.value;
+                        final profilePhoto = p?.profilePhoto ?? p?.logo ?? '';
+                        return Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.greyBg100,
+                            border: Border.all(color: AppTheme.fieldBorderColor, width: 2),
+                          ),
+                          child: CircleAvatar(
+                            backgroundColor: Colors.transparent,
+                            backgroundImage: profilePhoto.isNotEmpty
+                                ? NetworkImage(profilePhoto) as ImageProvider
+                                : const AssetImage('assets/images/ngo_logo.png'),
+                          ),
+                        );
+                      }),
                       Positioned(
                         bottom: 0,
                         right: 0,
@@ -398,98 +431,186 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 const SizedBox(height: 32),
                 
-                // Section Title: Personal Details
-                Text(
-                  AppString.personalDetails.tr,
-                  style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
-                ),
-                const SizedBox(height: 16),
+                if (isDonor) ...[
+                  // ---------------- DONOR LAYOUT (First Screen) ----------------
+                  Text(
+                    AppString.personalDetails.tr,
+                    style: AppFonts.semiBoldText.copyWith(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
 
-                // Organization Name
-                _buildInputField(
-                  label: AppString.organizationName.tr,
-                  controller: _orgNameController,
-                  hint: AppString.enterOrganizationName.tr,
-                ),
-                const SizedBox(height: 16),
+                  _buildInputField(
+                    label: "Full Name",
+                    controller: _nameController,
+                    hint: "Enter Your Full Name",
+                  ),
+                  const SizedBox(height: 16),
 
-                // Registered Address
-                _buildInputField(
-                  label: AppString.registeredAddress.tr,
-                  controller: _addressController,
-                  hint: AppString.enterFullOfficialAddress.tr,
-                ),
-                const SizedBox(height: 16),
+                  _buildInputField(
+                    label: "Email Address",
+                    controller: _emailController,
+                    hint: "Enter Your Email Address",
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16),
 
-                // Years
-                _buildInputField(
-                  label: AppString.years.tr,
-                  controller: _yearsController,
-                  hint: AppString.years.tr,
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 16),
-
-                // Phone field
-                Text(
-                  AppString.enterYourPhoneNo.tr,
-                  style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: Colors.black87),
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () => _showEditPhoneBottomSheet(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppTheme.fieldBorderColor),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          _countryCode,
-                          style: AppFonts.mediumText.copyWith(fontSize: 14, color: Colors.black87),
-                        ),
-                        const Icon(Icons.arrow_drop_down, color: Colors.black54),
-                        const SizedBox(width: 8),
-                        Container(width: 1, height: 20, color: AppTheme.fieldBorderColor),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _phoneController.text,
-                            style: AppFonts.regularText.copyWith(fontSize: 14, color: Colors.black87),
+                  Text(
+                    "Enter Your Phone Number",
+                    style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () => _showEditPhoneBottomSheet(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppTheme.fieldBorderColor),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            _countryCode,
+                            style: AppFonts.mediumText.copyWith(fontSize: 14, color: Colors.black87),
                           ),
-                        ),
-                        const Icon(Icons.edit_outlined, size: 16, color: Colors.grey),
-                      ],
+                          const Icon(Icons.arrow_drop_down, color: Colors.black54),
+                          const SizedBox(width: 8),
+                          Container(width: 1, height: 20, color: AppTheme.fieldBorderColor),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _phoneController.text,
+                              style: AppFonts.regularText.copyWith(fontSize: 14, color: Colors.black87),
+                            ),
+                          ),
+                          const Icon(Icons.edit_outlined, size: 16, color: Colors.grey),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Email Address
-                _buildInputField(
-                  label: AppString.enterYourEmailAddress.tr,
-                  controller: _emailController,
-                  hint: AppString.enterYourEmailAddress.tr,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 32),
+                  Text(
+                    "Select Your Gender",
+                    style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildGenderButton(
+                          label: "Female",
+                          icon: Icons.female,
+                          isSelected: _selectedGender == "Female",
+                          onTap: () => setState(() => _selectedGender = "Female"),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildGenderButton(
+                          label: "Male",
+                          icon: Icons.male,
+                          isSelected: _selectedGender == "Male",
+                          onTap: () => setState(() => _selectedGender = "Male"),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildGenderButton(
+                          label: "Other",
+                          isSelected: _selectedGender == "Other",
+                          onTap: () => setState(() => _selectedGender = "Other"),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  // ---------------- NGO LAYOUT (Second Screen) ----------------
+                  Text(
+                    AppString.personalDetails.tr,
+                    style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
+                  ),
+                  const SizedBox(height: 16),
 
-                // Section Title: Our Mission
-                Text(
-                  AppString.ourMission.tr,
-                  style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
-                ),
-                const SizedBox(height: 16),
+                  _buildInputField(
+                    label: AppString.organizationName.tr,
+                    controller: _orgNameController,
+                    hint: AppString.enterOrganizationName.tr,
+                  ),
+                  const SizedBox(height: 16),
 
-                // About Organization
-                _buildInputField(
-                  label: AppString.aboutUs.tr,
-                  controller: _aboutController,
-                  hint: AppString.writeHere.tr,
-                  maxLines: 5,
-                ),
+                  _buildInputField(
+                    label: AppString.registeredAddress.tr,
+                    controller: _addressController,
+                    hint: AppString.enterFullOfficialAddress.tr,
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildInputField(
+                    label: AppString.years.tr,
+                    controller: _yearsController,
+                    hint: AppString.years.tr,
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 16),
+
+                  Text(
+                    AppString.enterYourPhoneNo.tr,
+                    style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () => _showEditPhoneBottomSheet(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppTheme.fieldBorderColor),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            _countryCode,
+                            style: AppFonts.mediumText.copyWith(fontSize: 14, color: Colors.black87),
+                          ),
+                          const Icon(Icons.arrow_drop_down, color: Colors.black54),
+                          const SizedBox(width: 8),
+                          Container(width: 1, height: 20, color: AppTheme.fieldBorderColor),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _phoneController.text,
+                              style: AppFonts.regularText.copyWith(fontSize: 14, color: Colors.black87),
+                            ),
+                          ),
+                          const Icon(Icons.edit_outlined, size: 16, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildInputField(
+                    label: AppString.enterYourEmailAddress.tr,
+                    controller: _emailController,
+                    hint: AppString.enterYourEmailAddress.tr,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 32),
+
+                  Text(
+                    AppString.ourMission.tr,
+                    style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildInputField(
+                    label: AppString.aboutUs.tr,
+                    controller: _aboutController,
+                    hint: AppString.writeHere.tr,
+                    maxLines: 5,
+                  ),
+                ],
                 const SizedBox(height: 40),
 
                 // Save Changes button
@@ -523,6 +644,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenderButton({
+    required String label,
+    IconData? icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    Color iconColor = Colors.grey;
+    if (label == "Female") iconColor = Colors.purple;
+    if (label == "Male") iconColor = Colors.teal;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFF0F4F8) : Colors.white,
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryDeepBlue : AppTheme.fieldBorderColor,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: iconColor, size: 18),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: AppFonts.semiBoldText.copyWith(
+                fontSize: 14,
+                color: isSelected ? AppTheme.primaryDeepBlue : Colors.black87,
+              ),
+            ),
+          ],
         ),
       ),
     );
