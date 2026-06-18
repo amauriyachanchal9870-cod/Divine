@@ -11,4 +11,5 @@ class ApiUrls{
   static const String homeUrl = "$apiBaseUrl/home";
   static const String notificationsUrl = "$apiBaseUrl/donor/notifications";
   static const String recentSearchesUrl = "$apiBaseUrl/donor/recent-searches";
+  static const String profileUrl = "$apiBaseUrl/donor/profile";
 }
