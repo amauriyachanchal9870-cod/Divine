@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../Controller/home_controller.dart';
+import '../../Model/home_model.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
@@ -9,6 +11,8 @@ class DonationHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final HomeController homeController = Get.find<HomeController>();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -21,29 +25,49 @@ class DonationHistoryScreen extends StatelessWidget {
         title: Text(AppString.donationHistory.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
         centerTitle: false,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              _buildTotalDonationSummary(),
-              const SizedBox(height: 24),
-              _buildHistoryItem("Gau Seva Trust", "20 Feb 2024", "₹50", "Donated NGO"),
-              _buildHistoryItem("Gau Seva Trust", "20 Feb 2024", "₹50", "Donated NGO"),
-              _buildHistoryItem("Gau Seva Trust", "20 Feb 2024", "₹50", "Donated NGO"),
-              _buildHistoryItem("Gau Seva Trust", "19 Feb 2024", "₹50", "Donated NGO"),
-              _buildHistoryItem("Gau Seva Trust", "18 Feb 2024", "₹50", "Donated NGO"),
-              const SizedBox(height: 40),
-            ],
+      body: Obx(() {
+        final history = homeController.donationHistory;
+        final totalDonations = history.fold<int>(0, (sum, item) => sum + (item.amount ?? 0));
+        // Count unique campaign items supported
+        final campaignsSupported = history.map((e) => e.item).where((item) => item != null && item.isNotEmpty).toSet().length;
+
+        if (history.isEmpty) {
+          return Center(
+            child: Text(
+              "No donation history found",
+              style: AppFonts.regularText.copyWith(color: AppTheme.textGrey400),
+            ),
+          );
+        }
+
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                _buildTotalDonationSummary(campaignsSupported, totalDonations),
+                const SizedBox(height: 24),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: history.length,
+                  itemBuilder: (context, index) {
+                    final txn = history[index];
+                    return _buildHistoryItem(txn);
+                  },
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 
-  Widget _buildTotalDonationSummary() {
+  Widget _buildTotalDonationSummary(int campaigns, int totalAmount) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -57,7 +81,7 @@ class DonationHistoryScreen extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("15", style: AppFonts.titleStyle.copyWith(fontSize: 20)),
+              Text("$campaigns", style: AppFonts.titleStyle.copyWith(fontSize: 20)),
               const SizedBox(height: 4),
               Text("Campaigns Supported", style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
             ],
@@ -66,7 +90,7 @@ class DonationHistoryScreen extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text("₹1200", style: AppFonts.titleStyle.copyWith(fontSize: 20, color: AppTheme.primaryDeepBlue)),
+              Text("₹$totalAmount", style: AppFonts.titleStyle.copyWith(fontSize: 20, color: AppTheme.primaryDeepBlue)),
               const SizedBox(height: 4),
               Text(AppString.totalDonations.tr, style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
             ],
@@ -76,14 +100,32 @@ class DonationHistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHistoryItem(String title, String date, String amount, String subtitle) {
+  Widget _buildHistoryItem(HomeDonationHistory txn) {
+    final title = txn.item ?? 'Donation';
+    final subtitle = txn.donor != null ? 'by ${txn.donor}' : (txn.status ?? '');
+    
+    String displayDate = txn.date ?? '';
+    if (displayDate.length > 10) {
+      displayDate = displayDate.substring(0, 10);
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 24,
-            backgroundImage: AssetImage('assets/images/ngo_logo.png'), 
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryDeepBlue.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                (title.isNotEmpty ? title[0] : '?').toUpperCase(),
+                style: TextStyle(color: AppTheme.primaryDeepBlue, fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -99,11 +141,11 @@ class DonationHistoryScreen extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(date, style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey400)),
+              Text(displayDate, style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey400)),
               const SizedBox(height: 4),
               Text(
-                amount,
-                style: AppFonts.semiBoldText.copyWith(fontSize: 14),
+                "₹${txn.amount}",
+                style: AppFonts.semiBoldText.copyWith(fontSize: 14, color: AppTheme.progressGreen),
               ),
             ],
           ),

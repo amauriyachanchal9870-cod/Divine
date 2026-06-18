@@ -49,7 +49,7 @@ class _SearchScreenState extends State<SearchScreen> {
           AppString.search.tr,
           style: AppFonts.titleStyle.copyWith(fontSize: 18),
         ),
-        centerTitle: true,
+        centerTitle: false,
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
