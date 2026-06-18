@@ -308,7 +308,7 @@ class HomeScreen extends StatelessWidget {
             children: [
               Text(AppString.ongoingCampaigns.tr, style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
               GestureDetector(
-                onTap: () => Get.toNamed(MyRouters.campaignDetailsScreen),
+                onTap: () => Get.toNamed(MyRouters.fundraisersScreen),
                 child: Text(AppString.seeAll.tr, style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.primaryDeepBlue)),
               ),
             ],
@@ -323,7 +323,7 @@ class HomeScreen extends StatelessWidget {
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
-              itemCount: campaigns.length,
+              itemCount: campaigns.length > 3 ? 3 : campaigns.length,
               separatorBuilder: (_, __) => const SizedBox(width: 16),
               itemBuilder: (context, index) {
                 final c = campaigns[index];
@@ -430,7 +430,7 @@ class HomeScreen extends StatelessWidget {
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
-              itemCount: ngos.length,
+              itemCount: ngos.length > 3 ? 3 : ngos.length,
               separatorBuilder: (_, __) => const SizedBox(width: 16),
               itemBuilder: (context, index) {
                 final ngo = ngos[index];

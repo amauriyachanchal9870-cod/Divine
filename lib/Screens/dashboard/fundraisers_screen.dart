@@ -1,5 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../Controller/home_controller.dart';
+import '../../Model/home_model.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
@@ -10,6 +13,8 @@ class FundraisersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final HomeController homeController = Get.find<HomeController>();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -25,24 +30,38 @@ class FundraisersScreen extends StatelessWidget {
         ),
         centerTitle: false,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSearchBar(),
-          _buildCategories(),
-          const SizedBox(height: 16),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: 5,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                return _buildCampaignCard();
-              },
+      body: Obx(() {
+        final campaigns = homeController.campaigns;
+
+        if (campaigns.isEmpty) {
+          return Center(
+            child: Text(
+              "No fundraisers found",
+              style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500),
             ),
-          ),
-        ],
-      ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSearchBar(),
+            _buildCategories(),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: campaigns.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                itemBuilder: (context, index) {
+                  final campaign = campaigns[index];
+                  return _buildCampaignCard(campaign);
+                },
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
 
@@ -127,7 +146,7 @@ class FundraisersScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCampaignCard() {
+  Widget _buildCampaignCard(HomeCampaign c) {
     return GestureDetector(
       onTap: () => Get.toNamed(MyRouters.campaignDetailsScreen),
       child: Container(
@@ -141,32 +160,55 @@ class FundraisersScreen extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: Image.asset(
-                'assets/images/campaign_image.png',
-                height: 160,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
+              child: c.imageUrl != null && c.imageUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: c.imageUrl!,
+                      height: 160,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (ctx, url) => Container(
+                        height: 160,
+                        color: Colors.grey.shade200,
+                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+                      errorWidget: (ctx, url, err) => Image.asset(
+                        'assets/images/campaign_image.png',
+                        height: 160,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Image.asset(
+                      'assets/images/campaign_image.png',
+                      height: 160,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Rural education Initiative", style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
+                  Text(c.title ?? '', style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
                   const SizedBox(height: 4),
-                  Text("Providing supplies for 50 students", style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
+                  Text(
+                    c.description ?? '',
+                    style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("₹ 54,000 raised", style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.progressGreen)),
-                      Text("of 75k", style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
+                      Text("₹ ${c.raised} raised", style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.progressGreen)),
+                      Text("of ${c.goal}", style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
                     ],
                   ),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
-                    value: 54000 / 75000,
+                    value: c.progress,
                     backgroundColor: AppTheme.fieldBorderColor,
                     color: AppTheme.progressGreen,
                     minHeight: 6,
@@ -177,15 +219,11 @@ class FundraisersScreen extends StatelessWidget {
                     children: [
                       const Icon(Icons.people_outline, size: 14, color: Colors.grey),
                       const SizedBox(width: 4),
-                      Text("1.3K Donors", style: AppFonts.regularText.copyWith(fontSize: 10, color: Colors.black)),
-                      const SizedBox(width: 16),
-                      const Icon(Icons.timelapse_rounded, size: 14, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text("12 days left", style: AppFonts.regularText.copyWith(fontSize: 10, color: Colors.black)),
+                      Text("${c.formattedDonors} Donors", style: AppFonts.regularText.copyWith(fontSize: 10, color: Colors.black)),
                       const SizedBox(width: 16),
                       const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
                       const SizedBox(width: 4),
-                      Text("Oct Now", style: AppFonts.regularText.copyWith(fontSize: 10, color: Colors.black)),
+                      Text("${c.daysLeft} days left", style: AppFonts.regularText.copyWith(fontSize: 10, color: Colors.black)),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -199,7 +237,7 @@ class FundraisersScreen extends StatelessWidget {
                         elevation: 0,
                       ),
                       onPressed: () {
-                        Get.toNamed(MyRouters.campaignDetailsScreen);
+                        Get.toNamed(MyRouters.donateAmountScreen);
                       },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
