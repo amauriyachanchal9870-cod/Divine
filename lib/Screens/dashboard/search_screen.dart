@@ -22,6 +22,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    controller.fetchRecentSearches();
     _searchTextController.addListener(() {
       controller.searchQuery.value = _searchTextController.text;
     });
@@ -77,7 +78,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     style: AppFonts.regularText.copyWith(fontSize: 14),
                     onSubmitted: (value) {
-                      controller.addRecentSearchLocal(value);
+                      controller.saveRecentSearch(value);
                     },
                   ),
                 ),
@@ -125,7 +126,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             trailing: IconButton(
                               icon: const Icon(Icons.close, color: Colors.grey, size: 16),
                               onPressed: () {
-                                controller.removeRecentSearchLocal(item);
+                                controller.removeRecentSearch(item);
                               },
                             ),
                             dense: true,
@@ -137,7 +138,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 TextPosition(offset: item.length),
                               );
                               controller.searchQuery.value = item;
-                              controller.addRecentSearchLocal(item);
+                              controller.saveRecentSearch(item);
                             },
                           );
                         },
@@ -194,7 +195,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return GestureDetector(
       onTap: () {
         if (controller.searchQuery.value.isNotEmpty) {
-          controller.addRecentSearchLocal(controller.searchQuery.value);
+          controller.saveRecentSearch(controller.searchQuery.value);
         }
         Get.toNamed(MyRouters.campaignDetailsScreen);
       },
@@ -304,7 +305,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                       onPressed: () {
                         if (controller.searchQuery.value.isNotEmpty) {
-                          controller.addRecentSearchLocal(controller.searchQuery.value);
+                          controller.saveRecentSearch(controller.searchQuery.value);
                         }
                         Get.toNamed(MyRouters.donateAmountScreen);
                       },

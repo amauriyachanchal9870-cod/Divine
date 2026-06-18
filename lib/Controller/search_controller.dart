@@ -59,6 +59,42 @@ class CampaignSearchController extends GetxController {
     recentSearches.remove(query);
   }
 
+  Future<void> saveRecentSearch(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    addRecentSearchLocal(trimmed);
+    try {
+      await Repositories().postApi(
+        url: ApiUrls.recentSearchesUrl,
+        mapData: {
+          "search": trimmed,
+          "keyword": trimmed,
+        },
+        showResponse: true,
+      );
+    } catch (e) {
+      // Silently fall back to local list update
+    }
+  }
+
+  Future<void> removeRecentSearch(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    removeRecentSearchLocal(trimmed);
+    try {
+      await Repositories().deleteApi(
+        url: ApiUrls.recentSearchesUrl,
+        mapData: {
+          "search": trimmed,
+          "keyword": trimmed,
+        },
+        showResponse: true,
+      );
+    } catch (e) {
+      // Silently fall back to local list update
+    }
+  }
+
   List<HomeCampaign> get filteredCampaigns {
     final query = searchQuery.value.trim().toLowerCase();
     final allCampaigns = _homeController.campaigns;
