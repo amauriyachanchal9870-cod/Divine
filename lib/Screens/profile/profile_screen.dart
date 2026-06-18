@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Routes/my_routes.dart';
 import '../../Controller/auth_controller.dart';
 import '../../Controller/profile_controller.dart';
@@ -67,69 +68,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Column(
                         children: isDonor ? [
                           _buildMenuTile(
-                            "assets/icons/donationHistoryIcon.png", 
+                            AppAssets.donationHistory, 
                             AppString.donationHistory.tr, 
                             () => Get.toNamed(MyRouters.donationHistoryScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/createCampaignIcon.png", 
+                            AppAssets.createCampaign, 
                             AppString.createCampaign.tr, 
                             () => Get.toNamed(MyRouters.raiseCampaignWizardScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/activeCampaignIcon.png", 
+                            AppAssets.activeCampaign, 
                             AppString.activeCampaigns.tr, 
                             () => Get.toNamed(MyRouters.activeCampaignsScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/followsIcon.png", 
+                            AppAssets.follows, 
                             "Following NGOs", 
                             () => Get.toNamed(MyRouters.followingNgosScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/couponIcon.png", 
+                            AppAssets.coupon, 
                             AppString.coupons.tr, 
                             () => Get.toNamed(MyRouters.couponsScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/referIcon.png", 
+                            AppAssets.refer, 
                             AppString.referAndEarn.tr, 
                             () => Get.toNamed(MyRouters.referralRewardsScreen),
                             showDivider: false
                           ),
                         ] : [
                           _buildMenuTile(
-                            "assets/icons/donationHistoryIcon.png", 
+                            AppAssets.donationHistory, 
                             AppString.donationHistory.tr, 
                             () => Get.toNamed(MyRouters.donationHistoryScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/createCampaignIcon.png", 
+                            AppAssets.createCampaign, 
                             AppString.createCampaign.tr, 
                             () => Get.toNamed(MyRouters.raiseCampaignWizardScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/activeCampaignIcon.png", 
+                            AppAssets.activeCampaign, 
                             AppString.activeCampaigns.tr, 
                             () => Get.toNamed(MyRouters.activeCampaignsScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/followsIcon.png", 
+                            AppAssets.follows, 
                             AppString.follows.tr, 
                             () => Get.toNamed(MyRouters.followingNgosScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/myReviewsIcon.png", 
+                            AppAssets.myReviews, 
                             AppString.myReviews.tr, 
                             () => Get.toNamed(MyRouters.myReviewsScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/couponIcon.png", 
+                            AppAssets.coupon, 
                             AppString.coupons.tr, 
                             () => Get.toNamed(MyRouters.couponsScreen)
                           ),
                           _buildMenuTile(
-                            "assets/icons/referIcon.png", 
+                            AppAssets.refer, 
                             AppString.referAndEarn.tr, 
                             () => Get.toNamed(MyRouters.referralRewardsScreen),
                             showDivider: false
@@ -163,27 +164,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       children: [
                         _buildMenuTile(
-                          "assets/icons/settingIcon.png", 
+                          AppAssets.setting, 
                           AppString.settings.tr, 
                           () => Get.toNamed(MyRouters.settingsScreen)
                         ),
                         _buildMenuTile(
-                          "assets/icons/helpSupportIcon.png", 
+                          AppAssets.helpSupport, 
                           AppString.helpSupport.tr, 
                           () => Get.toNamed(MyRouters.helpSupportScreen)
                         ),
                         _buildMenuTile(
-                          "assets/icons/termsConditionIcon.png", 
+                          AppAssets.termsCondition, 
                           AppString.termsConditions.tr, 
                           () => Get.toNamed(MyRouters.termsConditionScreen)
                         ),
                         _buildMenuTile(
-                          "assets/icons/privacyPolicyIcon.png", 
+                          AppAssets.privacyPolicy, 
                           AppString.privacyPolicy.tr, 
                           () => Get.toNamed(MyRouters.privacyPolicyScreen)
                         ),
                         _buildMenuTile(
-                          "assets/icons/aboutUsIcon.png", 
+                          AppAssets.aboutUs, 
                           AppString.aboutUs.tr, 
                           () => Get.toNamed(MyRouters.aboutUsScreen),
                           showDivider: false
@@ -246,7 +247,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   backgroundColor: Colors.grey.shade200,
                   backgroundImage: profilePhoto.isNotEmpty
                       ? NetworkImage(profilePhoto) as ImageProvider
-                      : const AssetImage('assets/images/ngo_logo.png'),
+                      : const AssetImage(AppAssets.ngoLogo),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

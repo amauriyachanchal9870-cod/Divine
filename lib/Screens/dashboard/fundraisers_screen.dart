@@ -6,6 +6,7 @@ import '../../Model/home_model.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Routes/my_routes.dart';
 
 class FundraisersScreen extends StatelessWidget {
@@ -91,9 +92,9 @@ class FundraisersScreen extends StatelessWidget {
     final categories = [
       {'name': AppString.all.tr, 'icon': Icons.grid_view, 'selected': true},
       {'name': AppString.medical.tr, 'icon': Icons.medical_services_outlined, 'selected': false},
-      {'name': AppString.education.tr, 'icon': 'assets/icons/booksIcon.png', 'selected': false},
+      {'name': AppString.education.tr, 'icon': AppAssets.books, 'selected': false},
       {'name': AppString.emergency.tr, 'icon': Icons.warning_amber_rounded, 'selected': false},
-      {'name': AppString.animalWelfare.tr, 'icon': 'assets/icons/gauIcon.png', 'selected': false},
+      {'name': AppString.animalWelfare.tr, 'icon': AppAssets.gau, 'selected': false},
     ];
 
     return SizedBox(
@@ -172,14 +173,14 @@ class FundraisersScreen extends StatelessWidget {
                         child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                       ),
                       errorWidget: (ctx, url, err) => Image.asset(
-                        'assets/images/campaign_image.png',
+                        AppAssets.campaignImage,
                         height: 160,
                         width: double.infinity,
                         fit: BoxFit.cover,
                       ),
                     )
                   : Image.asset(
-                      'assets/images/campaign_image.png',
+                      AppAssets.campaignImage,
                       height: 160,
                       width: double.infinity,
                       fit: BoxFit.cover,

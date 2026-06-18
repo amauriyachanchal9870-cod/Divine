@@ -6,6 +6,7 @@ import '../../Model/home_model.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Routes/my_routes.dart';
 import 'main_navigation_screen.dart';
 
@@ -89,7 +90,7 @@ class HomeScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 10.0),
               child: Row(
                 children: [
-                  Image.asset('assets/icons/homeWalletIcon.png', width: 14, height: 14,),
+                  Image.asset(AppAssets.homeWallet, width: 14, height: 14,),
                   const SizedBox(width: 6),
                   Text('₹ $balance', style: AppFonts.semiBoldText.copyWith(color: Colors.black, fontSize: 14)),
                 ],
@@ -152,11 +153,11 @@ class HomeScreen extends StatelessWidget {
   Widget _buildCategories() {
     final categories = [
       {'name': AppString.all.tr, 'icon': Icons.grid_view, 'selected': true},
-      {'name': AppString.temple.tr, 'icon': 'assets/icons/templeIcon.png', 'selected': false},
-      {'name': AppString.books.tr, 'icon': 'assets/icons/booksIcon.png', 'selected': false},
-      {'name': AppString.food.tr, 'icon': 'assets/icons/foodIcon.png', 'selected': false},
-      {'name': AppString.gauSeva.tr, 'icon': 'assets/icons/gauIcon.png', 'selected': false},
-      {'name': AppString.clothes.tr, 'icon': 'assets/icons/clothesIcon.png', 'selected': false},
+      {'name': AppString.temple.tr, 'icon': AppAssets.temple, 'selected': false},
+      {'name': AppString.books.tr, 'icon': AppAssets.books, 'selected': false},
+      {'name': AppString.food.tr, 'icon': AppAssets.food, 'selected': false},
+      {'name': AppString.gauSeva.tr, 'icon': AppAssets.gau, 'selected': false},
+      {'name': AppString.clothes.tr, 'icon': AppAssets.clothes, 'selected': false},
     ];
     return SizedBox(
       height: 40,
@@ -217,7 +218,7 @@ class HomeScreen extends StatelessWidget {
                     Container(
                       width: 32, height: 32,
                       decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: Padding(padding: const EdgeInsets.all(6.0), child: Image.asset('assets/icons/donateHomeIcon.png', fit: BoxFit.contain)),
+                      child: Padding(padding: const EdgeInsets.all(6.0), child: Image.asset(AppAssets.donateHome, fit: BoxFit.contain)),
                     ),
                     const SizedBox(width: 8),
                     Flexible(child: Text(AppString.donate.tr, style: AppFonts.semiBoldText.copyWith(color: Colors.white, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -242,7 +243,7 @@ class HomeScreen extends StatelessWidget {
                     Container(
                       width: 32, height: 32,
                       decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: Padding(padding: const EdgeInsets.all(6.0), child: Image.asset('assets/icons/raiseHomeIcon.png', fit: BoxFit.contain)),
+                      child: Padding(padding: const EdgeInsets.all(6.0), child: Image.asset(AppAssets.raiseHome, fit: BoxFit.contain)),
                     ),
                     const SizedBox(width: 8),
                     Flexible(child: Text(AppString.raise.tr, style: AppFonts.semiBoldText.copyWith(color: Colors.white, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -295,7 +296,7 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ),
-          Expanded(flex: 5, child: Image.asset('assets/images/donateAndFund.png', height: 100, fit: BoxFit.contain)),
+          Expanded(flex: 5, child: Image.asset(AppAssets.donateAndFund, height: 100, fit: BoxFit.contain)),
         ],
       ),
     );
@@ -347,8 +348,8 @@ class HomeScreen extends StatelessWidget {
                           child: c.imageUrl != null && c.imageUrl!.isNotEmpty
                               ? CachedNetworkImage(imageUrl: c.imageUrl!, height: 120, width: double.infinity, fit: BoxFit.cover,
                                   placeholder: (ctx, url) => Container(height: 120, color: Colors.grey.shade200, child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
-                                  errorWidget: (ctx, url, err) => Image.asset('assets/images/campaign_image.png', height: 120, width: double.infinity, fit: BoxFit.cover))
-                              : Image.asset('assets/images/campaign_image.png', height: 120, width: double.infinity, fit: BoxFit.cover),
+                                  errorWidget: (ctx, url, err) => Image.asset(AppAssets.campaignImage, height: 120, width: double.infinity, fit: BoxFit.cover))
+                              : Image.asset(AppAssets.campaignImage, height: 120, width: double.infinity, fit: BoxFit.cover),
                         ),
                         Padding(
                           padding: const EdgeInsets.all(12.0),
@@ -453,8 +454,8 @@ class HomeScreen extends StatelessWidget {
                               radius: 30,
                               backgroundColor: Colors.grey.shade200,
                               child: ngo.logo != null && ngo.logo!.isNotEmpty
-                                  ? ClipOval(child: CachedNetworkImage(imageUrl: ngo.logo!, width: 60, height: 60, fit: BoxFit.cover, errorWidget: (c, u, e) => Image.asset('assets/images/ngo_logo.png', fit: BoxFit.cover)))
-                                  : ClipOval(child: Image.asset('assets/images/ngo_logo.png', fit: BoxFit.cover)),
+                                  ? ClipOval(child: CachedNetworkImage(imageUrl: ngo.logo!, width: 60, height: 60, fit: BoxFit.cover, errorWidget: (c, u, e) => Image.asset(AppAssets.ngoLogo, fit: BoxFit.cover)))
+                                  : ClipOval(child: Image.asset(AppAssets.ngoLogo, fit: BoxFit.cover)),
                             ),
                             Positioned(
                               bottom: -6, left: 0, right: 0,
@@ -660,7 +661,7 @@ class _BannerSliderState extends State<_BannerSlider> {
                             imageUrl: banner.imageUrl!,
                             fit: BoxFit.cover,
                             placeholder: (c, u) => Container(color: AppTheme.bannerBgColor),
-                            errorWidget: (c, u, e) => Image.asset('assets/images/donateAndFund.png', fit: BoxFit.cover),
+                            errorWidget: (c, u, e) => Image.asset(AppAssets.donateAndFund, fit: BoxFit.cover),
                           ),
                         ),
                       Positioned(

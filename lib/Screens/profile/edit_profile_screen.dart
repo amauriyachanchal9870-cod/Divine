@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/app_string.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Controller/profile_controller.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -406,7 +407,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             backgroundColor: Colors.transparent,
                             backgroundImage: profilePhoto.isNotEmpty
                                 ? NetworkImage(profilePhoto) as ImageProvider
-                                : const AssetImage('assets/images/ngo_logo.png'),
+                                : const AssetImage(AppAssets.ngoLogo),
                           ),
                         );
                       }),

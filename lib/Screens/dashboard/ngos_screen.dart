@@ -5,6 +5,7 @@ import '../../Controller/home_controller.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Routes/my_routes.dart';
 
 class NgosScreen extends StatefulWidget {
@@ -138,14 +139,14 @@ class _NgosScreenState extends State<NgosScreen> {
                                           height: 72,
                                           fit: BoxFit.cover,
                                           errorWidget: (c, u, e) => Image.asset(
-                                            'assets/images/ngo_logo.png',
+                                            AppAssets.ngoLogo,
                                             fit: BoxFit.cover,
                                           ),
                                         ),
                                       )
                                     : ClipOval(
                                         child: Image.asset(
-                                          'assets/images/ngo_logo.png',
+                                          AppAssets.ngoLogo,
                                           fit: BoxFit.cover,
                                         ),
                                       ),
