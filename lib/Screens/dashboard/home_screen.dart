@@ -47,8 +47,11 @@ class HomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSearchBar(),
+                const SizedBox(height: 12),
                 _buildCategories(),
+                const SizedBox(height: 12),
                 _buildActionButtons(context),
+                const SizedBox(height: 12),
                 _buildBannerSlider(context, controller.banners),
                 _buildOngoingCampaigns(controller.campaigns),
                 _buildTopNGOs(controller.ngos),
@@ -128,7 +131,7 @@ class HomeScreen extends StatelessWidget {
     return GestureDetector(
       onTap: () => Get.toNamed(MyRouters.searchScreen),
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        margin: const EdgeInsets.only(left: 16, right: 16, top: 10),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -196,7 +199,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildActionButtons(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
         children: [
           Expanded(
