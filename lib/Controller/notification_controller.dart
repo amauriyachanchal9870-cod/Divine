@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 import '../Model/notification_model.dart';
 import '../Repo/common_repo.dart';
@@ -21,9 +20,7 @@ class NotificationController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
 
-      final prefs = await SharedPreferences.getInstance();
-      final role = prefs.getString('role') ?? 'donor';
-      final url = "${ApiUrls.apiBaseUrl}/$role/notifications";
+      final url = ApiUrls.notificationsUrl;
 
       final response = await Repositories().getApi(
         url: url,

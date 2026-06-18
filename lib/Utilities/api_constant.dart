@@ -9,4 +9,5 @@ class ApiUrls{
   static const String logoutUrl = "$apiBaseUrl/auth/logout";
   static const String registerUrl = "$apiBaseUrl/auth/register";
   static const String homeUrl = "$apiBaseUrl/home";
+  static const String notificationsUrl = "$apiBaseUrl/donor/notifications";
 }
