@@ -49,60 +49,95 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: AppFonts.semiBoldText.copyWith(fontSize: 14, color: AppTheme.hintTextColor)
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppTheme.whiteColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.fieldBorderColor.withValues(alpha: 0.6)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.blackColor.withValues(alpha: 0.015),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        _buildMenuTile(
-                          "assets/icons/donationHistoryIcon.png", 
-                          AppString.donationHistory.tr, 
-                          () => Get.toNamed(MyRouters.donationHistoryScreen)
-                        ),
-                        _buildMenuTile(
-                          "assets/icons/createCampaignIcon.png", 
-                          AppString.createCampaign.tr, 
-                          () => Get.toNamed(MyRouters.raiseCampaignWizardScreen)
-                        ),
-                        _buildMenuTile(
-                          "assets/icons/activeCampaignIcon.png", 
-                          AppString.activeCampaigns.tr, 
-                          () => Get.toNamed(MyRouters.activeCampaignsScreen)
-                        ),
-                        _buildMenuTile(
-                          "assets/icons/followsIcon.png", 
-                          AppString.follows.tr, 
-                          () => Get.toNamed(MyRouters.followingNgosScreen)
-                        ),
-                        _buildMenuTile(
-                          "assets/icons/myReviewsIcon.png", 
-                          AppString.myReviews.tr, 
-                          () => Get.toNamed(MyRouters.myReviewsScreen)
-                        ),
-                        _buildMenuTile(
-                          "assets/icons/couponIcon.png", 
-                          AppString.coupons.tr, 
-                          () => Get.toNamed(MyRouters.couponsScreen)
-                        ),
-                        _buildMenuTile(
-                          "assets/icons/referIcon.png", 
-                          AppString.referAndEarn.tr, 
-                          () => Get.toNamed(MyRouters.referralRewardsScreen),
-                          showDivider: false
-                        ),
-                      ],
-                    ),
-                  ),
+                  Obx(() {
+                    final isDonor = profileController.profileData.value?.role == "donor";
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.whiteColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.fieldBorderColor.withValues(alpha: 0.6)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.blackColor.withValues(alpha: 0.015),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: isDonor ? [
+                          _buildMenuTile(
+                            "assets/icons/donationHistoryIcon.png", 
+                            AppString.donationHistory.tr, 
+                            () => Get.toNamed(MyRouters.donationHistoryScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/createCampaignIcon.png", 
+                            AppString.createCampaign.tr, 
+                            () => Get.toNamed(MyRouters.raiseCampaignWizardScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/activeCampaignIcon.png", 
+                            AppString.activeCampaigns.tr, 
+                            () => Get.toNamed(MyRouters.activeCampaignsScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/followsIcon.png", 
+                            "Following NGOs", 
+                            () => Get.toNamed(MyRouters.followingNgosScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/couponIcon.png", 
+                            AppString.coupons.tr, 
+                            () => Get.toNamed(MyRouters.couponsScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/referIcon.png", 
+                            AppString.referAndEarn.tr, 
+                            () => Get.toNamed(MyRouters.referralRewardsScreen),
+                            showDivider: false
+                          ),
+                        ] : [
+                          _buildMenuTile(
+                            "assets/icons/donationHistoryIcon.png", 
+                            AppString.donationHistory.tr, 
+                            () => Get.toNamed(MyRouters.donationHistoryScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/createCampaignIcon.png", 
+                            AppString.createCampaign.tr, 
+                            () => Get.toNamed(MyRouters.raiseCampaignWizardScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/activeCampaignIcon.png", 
+                            AppString.activeCampaigns.tr, 
+                            () => Get.toNamed(MyRouters.activeCampaignsScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/followsIcon.png", 
+                            AppString.follows.tr, 
+                            () => Get.toNamed(MyRouters.followingNgosScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/myReviewsIcon.png", 
+                            AppString.myReviews.tr, 
+                            () => Get.toNamed(MyRouters.myReviewsScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/couponIcon.png", 
+                            AppString.coupons.tr, 
+                            () => Get.toNamed(MyRouters.couponsScreen)
+                          ),
+                          _buildMenuTile(
+                            "assets/icons/referIcon.png", 
+                            AppString.referAndEarn.tr, 
+                            () => Get.toNamed(MyRouters.referralRewardsScreen),
+                            showDivider: false
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
                   
                   const SizedBox(height: 24),
                   
@@ -244,7 +279,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => Get.toNamed(MyRouters.ngoDetailsScreen, arguments: {'isOwnProfile': true}),
+                  onTap: () {
+                    if (p?.role == "donor") {
+                      Get.toNamed(MyRouters.editProfileScreen);
+                    } else {
+                      Get.toNamed(MyRouters.ngoDetailsScreen, arguments: {'isOwnProfile': true});
+                    }
+                  },
                   child: Container(
                     width: 36,
                     height: 36,
@@ -252,7 +293,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: Color(0xFFEEEEEE),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.chevron_right, color: Colors.black87, size: 20),
+                    child: Icon(
+                      p?.role == "donor" ? Icons.edit_outlined : Icons.chevron_right, 
+                      color: Colors.black87, 
+                      size: 20
+                    ),
                   ),
                 ),
               ],
@@ -290,7 +335,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "₹0", 
+                          "₹500", 
                           style: AppFonts.semiBoldText.copyWith(fontSize: 15, color: Colors.black87)
                         ),
                         Text(
