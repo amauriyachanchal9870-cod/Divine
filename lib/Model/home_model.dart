@@ -1,3 +1,5 @@
+import '../Utilities/helper.dart';
+
 class HomeModel {
   bool? status;
   HomeData? data;
@@ -19,8 +21,9 @@ class HomeData {
   List<HomeCampaign>? campaigns;
   List<HomeNgo>? ngos;
   List<HomeDonationHistory>? donationHistory;
+  int? totalDonateAmount;
 
-  HomeData({this.user, this.banners, this.categories, this.campaigns, this.ngos, this.donationHistory});
+  HomeData({this.user, this.banners, this.categories, this.campaigns, this.ngos, this.donationHistory, this.totalDonateAmount});
 
   factory HomeData.fromJson(Map<String, dynamic> json) {
     return HomeData(
@@ -40,6 +43,9 @@ class HomeData {
       donationHistory: json['donationHistory'] != null
           ? (json['donationHistory'] as List).map((e) => HomeDonationHistory.fromJson(e)).toList()
           : [],
+      totalDonateAmount: json['totalDonateAmount'] is int
+          ? json['totalDonateAmount']
+          : int.tryParse(json['totalDonateAmount']?.toString() ?? '0') ?? 0,
     );
   }
 }
@@ -50,8 +56,9 @@ class HomeUser {
   String? name;
   String? role;
   int? walletBalance;
+  String? profilePhoto;
 
-  HomeUser({this.id, this.phone, this.name, this.role, this.walletBalance});
+  HomeUser({this.id, this.phone, this.name, this.role, this.walletBalance, this.profilePhoto});
 
   factory HomeUser.fromJson(Map<String, dynamic> json) {
     return HomeUser(
@@ -62,6 +69,7 @@ class HomeUser {
       walletBalance: json['walletBalance'] is int
           ? json['walletBalance']
           : int.tryParse(json['walletBalance']?.toString() ?? '0') ?? 0,
+      profilePhoto: json['profilePhoto'] ?? json['logo'],
     );
   }
 }
@@ -103,6 +111,7 @@ class HomeCategory {
 }
 
 class HomeCampaign {
+  String? sId;
   String? campaignId;
   String? title;
   String? user;
@@ -115,6 +124,7 @@ class HomeCampaign {
   String? description;
 
   HomeCampaign({
+    this.sId,
     this.campaignId,
     this.title,
     this.user,
@@ -129,6 +139,7 @@ class HomeCampaign {
 
   factory HomeCampaign.fromJson(Map<String, dynamic> json) {
     return HomeCampaign(
+      sId: json['_id'] ?? json['id'],
       campaignId: json['campaignId'],
       title: json['title'],
       user: json['user'],
@@ -142,15 +153,34 @@ class HomeCampaign {
     );
   }
 
+  static double _parseAmount(String? val, {double defaultValue = 0.0}) {
+    if (val == null || val.trim().isEmpty) return defaultValue;
+    String cleaned = val.replaceAll('₹', '').replaceAll(',', '').replaceAll(' ', '').trim();
+    if (cleaned.isEmpty) return defaultValue;
+    if (cleaned.endsWith('B') || cleaned.endsWith('b')) {
+      double numVal = double.tryParse(cleaned.substring(0, cleaned.length - 1)) ?? 0;
+      return numVal * 100000000;
+    } else if (cleaned.endsWith('M') || cleaned.endsWith('m')) {
+      double numVal = double.tryParse(cleaned.substring(0, cleaned.length - 1)) ?? 0;
+      return numVal * 1000000;
+    } else if (cleaned.endsWith('K') || cleaned.endsWith('k')) {
+      double numVal = double.tryParse(cleaned.substring(0, cleaned.length - 1)) ?? 0;
+      return numVal * 1000;
+    }
+    return double.tryParse(cleaned) ?? defaultValue;
+  }
+
   double get raisedAmount {
-    final cleaned = raised?.replaceAll(',', '').replaceAll(' ', '') ?? '0';
-    return double.tryParse(cleaned) ?? 0.0;
+    return _parseAmount(raised, defaultValue: 0.0);
   }
 
   double get goalAmount {
-    final cleaned = goal?.replaceAll(',', '').replaceAll(' ', '') ?? '1';
-    return double.tryParse(cleaned) ?? 1.0;
+    final parsed = _parseAmount(goal, defaultValue: 1.0);
+    return parsed <= 0.0 ? 1.0 : parsed;
   }
+
+  bool get isCompleted => goalAmount > 0 && raisedAmount >= goalAmount;
+  bool get isOngoing => !isCompleted;
 
   double get progress {
     if (goalAmount == 0) return 0;
@@ -160,9 +190,17 @@ class HomeCampaign {
 
   String get formattedDonors {
     if ((donorsCount ?? 0) >= 1000) {
-      return '${(donorsCount! / 1000).toStringAsFixed(1)}K';
+      return formatPrice(donorsCount!);
     }
     return donorsCount?.toString() ?? '0';
+  }
+
+  String get formattedRaised {
+    return '₹${formatPrice(raisedAmount)}';
+  }
+
+  String get formattedGoal {
+    return '₹${formatPrice(goalAmount)}';
   }
 }
 

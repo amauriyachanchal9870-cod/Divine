@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
@@ -9,7 +8,6 @@ import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/custom_button.dart';
-import '../../Routes/my_routes.dart';
 import '../../Controller/auth_controller.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -45,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Image.asset(
-                      'assets/images/appLogo.png',
+                      AppAssets.appLogo,
                       width: 30,
                       height: 30,
                     ),

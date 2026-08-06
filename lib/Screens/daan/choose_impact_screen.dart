@@ -221,7 +221,7 @@ class ChooseImpactScreen extends StatelessWidget {
                             style: TextStyle(color: Colors.white70, fontSize: 9),
                           ),
                           Text(
-                            "₹ ${controller.totalAmount}",
+                            "₹ ${controller.itemsTotal}",
                             style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                           ),
                         ],

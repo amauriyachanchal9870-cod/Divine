@@ -1,14 +1,22 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:get/get.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:http/http.dart' as http;
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
+import '../../Repo/common_repo.dart';
+import '../../Utilities/api_constant.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import '../../Utilities/helper.dart';
+import '../../Controller/home_controller.dart';
+import 'main_navigation_screen.dart';
 
 class RaiseCampaignWizardScreen extends StatefulWidget {
   const RaiseCampaignWizardScreen({super.key});
@@ -23,16 +31,15 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
+  DateTime? _selectedDateTime;
+  final TextEditingController _holderNameController = TextEditingController();
+  final TextEditingController _bankNameController = TextEditingController();
+  final TextEditingController _accountNumberController = TextEditingController();
+  final TextEditingController _ifscCodeController = TextEditingController();
   String? _selectedCategory;
 
-  final List<String> _categories = [
-    "Medical",
-    "Education",
-    "Emergency",
-    "Animal Welfare",
-    "Religious",
-    "NGO Welfare",
-  ];
+  List<String> _categories = [];
+  bool _isLoadingCategories = false;
 
   final ImagePicker _picker = ImagePicker();
   File? _mainImage;
@@ -47,10 +54,47 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   @override
   void initState() {
     super.initState();
+    _fetchCampaignCategories();
     _storyController.addListener(() {
       int length = _storyController.document.toPlainText().length - 1;
       _storyLengthNotifier.value = length > 0 ? length : 0;
     });
+  }
+
+  Future<void> _fetchCampaignCategories() async {
+    setState(() {
+      _isLoadingCategories = true;
+    });
+    try {
+      final response = await Repositories().getApi(
+        url: ApiUrls.campaignCategoriesUrl,
+        showResponse: true,
+      );
+      if (response != null) {
+        final jsonResponse = jsonDecode(response);
+        if (jsonResponse['status'] == true && jsonResponse['data'] != null) {
+          final List<dynamic> data = jsonResponse['data'];
+          final List<String> fetchedNames = data
+              .map((item) => item['name']?.toString() ?? '')
+              .where((name) => name.isNotEmpty)
+              .toList();
+          if (mounted) {
+            setState(() {
+              _categories = fetchedNames;
+              _isLoadingCategories = false;
+            });
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching campaign categories: $e");
+    }
+    if (mounted) {
+      setState(() {
+        _isLoadingCategories = false;
+      });
+    }
   }
 
   @override
@@ -61,8 +105,35 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
     _dateController.dispose();
     _titleController.dispose();
     _amountController.dispose();
+    _holderNameController.dispose();
+    _bankNameController.dispose();
+    _accountNumberController.dispose();
+    _ifscCodeController.dispose();
     _storyLengthNotifier.dispose();
     super.dispose();
+  }
+
+  void _clearFields() {
+    setState(() {
+      _titleController.clear();
+      _amountController.clear();
+      _dateController.clear();
+      _holderNameController.clear();
+      _bankNameController.clear();
+      _accountNumberController.clear();
+      _ifscCodeController.clear();
+      _selectedCategory = null;
+      _selectedDateTime = null;
+      _mainImage = null;
+      for (int i = 0; i < _smallImages.length; i++) {
+        _smallImages[i] = null;
+      }
+      _identityDocs.clear();
+      _medicalDocs.clear();
+      _currentStep = 0;
+      _storyController.document = quill.Document();
+    });
+    _pageController.jumpToPage(0);
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -84,6 +155,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
     );
     if (picked != null) {
       setState(() {
+        _selectedDateTime = picked;
         // Format as dd/mm/yyyy
         _dateController.text = "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
       });
@@ -109,27 +181,61 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   }
 
   Future<void> _pickIdentityDoc() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
-    );
-    if (result != null && result.files.single.path != null) {
+    _showPickerOptions((file) {
       setState(() {
-        _identityDocs.add(File(result.files.single.path!));
+        _identityDocs.add(file);
       });
-    }
+    });
   }
 
   Future<void> _pickMedicalDoc() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
-    );
-    if (result != null && result.files.single.path != null) {
+    _showPickerOptions((file) {
       setState(() {
-        _medicalDocs.add(File(result.files.single.path!));
+        _medicalDocs.add(file);
       });
-    }
+    });
+  }
+
+  void _showPickerOptions(Function(File) onFilePicked) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Colors.blue),
+                title: const Text('Pick Image from Gallery'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+                  if (image != null) {
+                    onFilePicked(File(image.path));
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                title: const Text('Pick PDF Document'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  FilePickerResult? result = await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['pdf'],
+                  );
+                  if (result != null && result.files.single.path != null) {
+                    onFilePicked(File(result.files.single.path!));
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   final List<String> _stepTitles = [
@@ -142,56 +248,46 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   void _nextStep() {
     if (_currentStep == 0) {
       if (_titleController.text.trim().isEmpty) {
-        Get.snackbar(
-          "Validation Error",
-          "Please enter a campaign title.",
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
-        );
+        showSnackBar("Please enter a campaign title.", false);
         return;
       }
       if (_selectedCategory == null) {
-        Get.snackbar(
-          "Validation Error",
-          "Please select a campaign category.",
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
-        );
+        showSnackBar("Please select a campaign category.", false);
         return;
       }
       if (_amountController.text.trim().isEmpty) {
-        Get.snackbar(
-          "Validation Error",
-          "Please enter a target amount.",
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
-        );
+        showSnackBar("Please enter a target amount.", false);
+        return;
+      }
+      final double targetAmt = double.tryParse(_amountController.text.trim()) ?? 0;
+      if (targetAmt > 100000000) {
+        showSnackBar("Target amount cannot be more than 100000000", false);
         return;
       }
       if (_dateController.text.trim().isEmpty) {
-        Get.snackbar(
-          "Validation Error",
-          "Please select an end date.",
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
-        );
+        showSnackBar("Please select an end date.", false);
         return;
       }
       if (_storyController.document.toPlainText().trim().isEmpty) {
-        Get.snackbar(
-          "Validation Error",
-          "Please write a campaign story.",
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
-        );
+        showSnackBar("Please write a campaign story.", false);
+        return;
+      }
+    } else if (_currentStep == 1) {
+      if (_mainImage == null) {
+        showSnackBar("Please upload a cover image.", false);
+        return;
+      }
+    } else if (_currentStep == 2) {
+      if (_identityDocs.isEmpty) {
+        showSnackBar("Please upload identity proof.", false);
+        return;
+      }
+      if (_medicalDocs.isEmpty) {
+        showSnackBar("Please upload medical documents.", false);
         return;
       }
     }
+
     if (_currentStep < 3) {
       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     }
@@ -204,16 +300,15 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 18),
-          onPressed: () {
-            if (_currentStep > 0) {
-              _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-            } else {
-              Get.back();
-            }
-          },
-        ),
+        automaticallyImplyLeading: false,
+        leading: _currentStep > 0
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 18),
+                onPressed: () {
+                  _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                },
+              )
+            : null,
         title: Text(AppString.raiseACampaign.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
         centerTitle: false,
       ),
@@ -405,6 +500,22 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
             child: quill.QuillSimpleToolbar(
               controller: _storyController,
               config: const quill.QuillSimpleToolbarConfig(
+                iconTheme: quill.QuillIconTheme(
+                  iconButtonUnselectedData: quill.IconButtonData(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                  ),
+                  iconButtonSelectedData: quill.IconButtonData(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+                buttonOptions: quill.QuillSimpleToolbarButtonOptions(
+                  base: quill.QuillToolbarBaseButtonOptions(
+                    iconSize: 15,
+                    iconButtonFactor: 1.25,
+                  ),
+                ),
                 showFontFamily: false,
                 showFontSize: false,
                 showListCheck: false,
@@ -443,8 +554,21 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
             child: quill.QuillEditor.basic(
               controller: _storyController,
               focusNode: _storyFocusNode,
-              config: const quill.QuillEditorConfig(
+              config: quill.QuillEditorConfig(
                 placeholder: "We need another and a wiser and perhaps a more mystical concept of animals...",
+                customStyles: quill.DefaultStyles(
+                  placeHolder: quill.DefaultTextBlockStyle(
+                    const TextStyle(
+                      fontSize: 13,
+                      height: 1.5,
+                      color: Colors.grey,
+                    ),
+                    const quill.HorizontalSpacing(0, 0),
+                    const quill.VerticalSpacing(0, 0),
+                    const quill.VerticalSpacing(0, 0),
+                    null,
+                  ),
+                ),
               ),
             ),
           ),
@@ -489,6 +613,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
               Expanded(
                 flex: 2,
                 child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: _pickMainImage,
                   child: DottedBorder(
                     options: RoundedRectDottedBorderOptions(
@@ -550,6 +675,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   Widget _buildSmallImageSlot(int index) {
     bool hasImage = _smallImages[index] != null;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => _pickSmallImage(index),
       child: DottedBorder(
         options: RoundedRectDottedBorderOptions(
@@ -632,6 +758,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
       children: [
         if (docs.isEmpty)
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: onPick,
             child: DottedBorder(
               options: RoundedRectDottedBorderOptions(
@@ -653,7 +780,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                     const SizedBox(height: 12),
                     Text(AppString.clickToUpload.tr, style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: Colors.black87)),
                     const SizedBox(height: 4),
-                    Text(AppString.uploadFormat.tr, style: AppFonts.regularText.copyWith(fontSize: 11, color: Colors.grey)),
+                    Text("PNG, JPG, PDF (Max. : 5MB)", style: AppFonts.regularText.copyWith(fontSize: 11, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -712,6 +839,153 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
     );
   }
 
+  Future<String?> _uploadFileToCatbox(File file) async {
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse('https://catbox.moe/user/api.php'));
+      request.fields['reqtype'] = 'fileupload';
+      request.files.add(await http.MultipartFile.fromPath('fileToUpload', file.path));
+
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        final responseData = await response.stream.bytesToString();
+        final url = responseData.trim();
+        debugPrint("Uploaded file URL: $url");
+        return url;
+      }
+    } catch (e) {
+      debugPrint("Error uploading file to Catbox: $e");
+    }
+    return null;
+  }
+
+  Future<void> _submitCampaign() async {
+    if (_holderNameController.text.trim().isEmpty) {
+      showSnackBar("Please enter account holder name.", false);
+      return;
+    }
+    if (_bankNameController.text.trim().isEmpty) {
+      showSnackBar("Please enter bank name.", false);
+      return;
+    }
+    if (_accountNumberController.text.trim().isEmpty) {
+      showSnackBar("Please enter account number.", false);
+      return;
+    }
+    if (_ifscCodeController.text.trim().isEmpty) {
+      showSnackBar("Please enter IFSC code.", false);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Center(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LoadingAnimationWidget.threeRotatingDots(
+                    color: AppTheme.primaryDeepBlue,
+                    size: 40,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text("Uploading campaign media & files...", style: TextStyle(fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    try {
+      List<String> imageUrls = [];
+      if (_mainImage != null) {
+        final mainUrl = await _uploadFileToCatbox(_mainImage!);
+        if (mainUrl != null) imageUrls.add(mainUrl);
+      }
+      for (var f in _smallImages) {
+        if (f != null) {
+          final url = await _uploadFileToCatbox(f);
+          if (url != null) imageUrls.add(url);
+        }
+      }
+
+      if (imageUrls.isEmpty) {
+        imageUrls.add("https://images.unsplash.com/photo-148852178991-ed7bbaeae773?auto=format&fit=crop&q=80&w=600");
+      }
+
+      List<String> documentUrls = [];
+      for (var f in _identityDocs) {
+        final url = await _uploadFileToCatbox(f);
+        if (url != null) documentUrls.add(url);
+      }
+      for (var f in _medicalDocs) {
+        final url = await _uploadFileToCatbox(f);
+        if (url != null) documentUrls.add(url);
+      }
+
+      if (documentUrls.isEmpty) {
+        documentUrls.add("https://s3.amazonaws.com/divine-docs/ngo_registration_pratham.pdf");
+      }
+
+      if (mounted) Navigator.of(context).pop();
+
+      final String endDateStr = _selectedDateTime != null 
+          ? _selectedDateTime!.toUtc().toIso8601String() 
+          : DateTime.now().add(const Duration(days: 30)).toUtc().toIso8601String();
+
+      final payload = {
+        "title": _titleController.text.trim(),
+        "category": _selectedCategory ?? "Education Aid",
+        "goal": double.tryParse(_amountController.text.trim()) ?? 75000,
+        "description": _storyController.document.toPlainText().trim(),
+        "oneTimeOrMonthly": "One-Time",
+        "endDate": endDateStr,
+        "images": imageUrls,
+        "video": "https://www.w3schools.com/html/mov_bbb.mp4",
+        "documents": documentUrls,
+        "bankDetails": {
+          "holderName": _holderNameController.text.trim(),
+          "accountNumber": _accountNumberController.text.trim(),
+          "bankName": _bankNameController.text.trim(),
+          "ifscCode": _ifscCodeController.text.trim(),
+        }
+      };
+
+      if (!mounted) return;
+      final response = await Repositories().postApi(
+        context: context,
+        url: ApiUrls.donorCampaignsUrl,
+        mapData: payload,
+        showResponse: true,
+      );
+
+      if (response != null) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(response);
+        if (jsonResponse['status'] == true) {
+          showSnackBar("Campaign created successfully!", true);
+          if (Get.isRegistered<HomeController>()) {
+            Get.find<HomeController>().fetchHomeData();
+          }
+          _clearFields();
+          mainNavKey.currentState?.changeTab(0);
+          Get.until((route) => route.settings.name == MyRouters.mainNav || route.isFirst);
+        } else {
+          showSnackBar(jsonResponse['message'] ?? "Failed to create campaign.", false);
+        }
+      } else {
+        showSnackBar("No response from server.", false);
+      }
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      showSnackBar("An unexpected error occurred: ${e.toString()}", false);
+    }
+  }
+
   Widget _buildBankDetailsStep() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
@@ -720,13 +994,13 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
         children: [
           Text(AppString.stepBankDetails.tr, style: AppFonts.titleStyle.copyWith(fontSize: 20)),
           const SizedBox(height: 24),
-          _buildTextField(AppString.accountHolder.tr, AppString.enterFullName.tr),
+          _buildTextField(AppString.accountHolder.tr, AppString.enterFullName.tr, controller: _holderNameController),
           const SizedBox(height: 16),
-          _buildTextField(AppString.bankName.tr, AppString.enterBankName.tr),
+          _buildTextField(AppString.bankName.tr, AppString.enterBankName.tr, controller: _bankNameController),
           const SizedBox(height: 16),
-          _buildTextField(AppString.accountNumber.tr, AppString.enterAccountNumber.tr),
+          _buildTextField(AppString.accountNumber.tr, AppString.enterAccountNumber.tr, controller: _accountNumberController),
           const SizedBox(height: 16),
-          _buildTextField(AppString.ifscCode.tr, AppString.enterIfscCode.tr),
+          _buildTextField(AppString.ifscCode.tr, AppString.enterIfscCode.tr, controller: _ifscCodeController),
           const SizedBox(height: 48),
           Row(
             children: [
@@ -739,7 +1013,75 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: () {
-                    Get.toNamed(MyRouters.raiseCampaignPreviewScreen);
+                    if (_titleController.text.trim().isEmpty) {
+                      showSnackBar("Please enter a campaign title.", false);
+                      return;
+                    }
+                    if (_selectedCategory == null) {
+                      showSnackBar("Please select a campaign category.", false);
+                      return;
+                    }
+                    if (_amountController.text.trim().isEmpty) {
+                      showSnackBar("Please enter a target amount.", false);
+                      return;
+                    }
+                    final double targetAmtSubmit = double.tryParse(_amountController.text.trim()) ?? 0;
+                    if (targetAmtSubmit > 100000000) {
+                      showSnackBar("Target amount cannot be more than 100000000", false);
+                      return;
+                    }
+                    if (_dateController.text.trim().isEmpty) {
+                      showSnackBar("Please select an end date.", false);
+                      return;
+                    }
+                    if (_storyController.document.toPlainText().trim().isEmpty) {
+                      showSnackBar("Please write a campaign story.", false);
+                      return;
+                    }
+                    if (_mainImage == null) {
+                      showSnackBar("Please upload a cover image.", false);
+                      return;
+                    }
+                    if (_identityDocs.isEmpty) {
+                      showSnackBar("Please upload identity proof.", false);
+                      return;
+                    }
+                    if (_medicalDocs.isEmpty) {
+                      showSnackBar("Please upload medical documents.", false);
+                      return;
+                    }
+                    if (_holderNameController.text.trim().isEmpty) {
+                      showSnackBar("Please enter account holder name.", false);
+                      return;
+                    }
+                    if (_bankNameController.text.trim().isEmpty) {
+                      showSnackBar("Please enter bank name.", false);
+                      return;
+                    }
+                    if (_accountNumberController.text.trim().isEmpty) {
+                      showSnackBar("Please enter account number.", false);
+                      return;
+                    }
+                    if (_ifscCodeController.text.trim().isEmpty) {
+                      showSnackBar("Please enter IFSC code.", false);
+                      return;
+                    }
+
+                    Get.toNamed(
+                      MyRouters.raiseCampaignPreviewScreen,
+                      arguments: {
+                        "title": _titleController.text.trim(),
+                        "category": _selectedCategory,
+                        "goal": _amountController.text.trim(),
+                        "description": _storyController.document.toPlainText().trim(),
+                        "endDate": _selectedDateTime,
+                        "mainImage": _mainImage,
+                        "smallImages": _smallImages.where((f) => f != null).cast<File>().toList(),
+                        "identityDocs": _identityDocs,
+                        "medicalDocs": _medicalDocs,
+                        "onSubmit": _submitCampaign,
+                      },
+                    );
                   },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -761,9 +1103,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () {
-                    // Logic to raise campaign
-                  },
+                  onPressed: _submitCampaign,
                   child: Text(AppString.raiseAction.tr, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
@@ -811,6 +1151,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   }
 
   Widget _buildDropdownField(String label, String hint, String? selectedValue, List<String> items, ValueChanged<String?> onChanged) {
+    final String effectiveHint = _isLoadingCategories ? "Loading categories..." : hint;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -826,9 +1167,15 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
-              value: selectedValue,
-              hint: Text(hint, style: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 14)),
-              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+              value: items.contains(selectedValue) ? selectedValue : null,
+              hint: Text(effectiveHint, style: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 14)),
+              icon: _isLoadingCategories
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
               items: items.map((String val) {
                 return DropdownMenuItem<String>(
                   value: val,

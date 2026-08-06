@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../Widget/shimmer_widget.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
 
@@ -145,7 +147,7 @@ class NgoCategoriesScreen extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Image.asset(
-            'assets/images/donateAndFund.png',
+            AppAssets.donateAndFund,
             width: 70,
             height: 70,
             fit: BoxFit.contain,
@@ -160,33 +162,33 @@ class NgoCategoriesScreen extends StatelessWidget {
     final categories = [
       {
         'title': AppString.womenAndGirls.tr,
-        'image': 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
-        'fallbackIcon': 'assets/icons/profileIcon.png',
+        'image': AppAssets.womenAndGirlsCategoryUrl,
+        'fallbackIcon': AppAssets.profile,
       },
       {
         'title': AppString.childrenCategory.tr,
-        'image': 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=400&q=80',
-        'fallbackIcon': 'assets/icons/danBooksIcon.png',
+        'image': AppAssets.childrenCategoryUrl,
+        'fallbackIcon': AppAssets.danBooks,
       },
       {
         'title': AppString.animal.tr,
-        'image': 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=400&q=80',
-        'fallbackIcon': 'assets/icons/gauIcon.png',
+        'image': AppAssets.animalCategoryUrl,
+        'fallbackIcon': AppAssets.gau,
       },
       {
         'title': AppString.medicalCategory.tr,
-        'image': 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=400&q=80',
-        'fallbackIcon': 'assets/icons/thankYouIcon.png',
+        'image': AppAssets.medicalCategoryUrl,
+        'fallbackIcon': AppAssets.thankYou,
       },
       {
         'title': AppString.educationCategory.tr,
-        'image': 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=400&q=80',
-        'fallbackIcon': 'assets/icons/booksIcon.png',
+        'image': AppAssets.educationCategoryUrl,
+        'fallbackIcon': AppAssets.books,
       },
       {
         'title': AppString.disabledCategory.tr,
-        'image': 'https://images.unsplash.com/photo-1596464716127-f2a82984de30?auto=format&fit=crop&w=400&q=80',
-        'fallbackIcon': 'assets/icons/helpSupportIcon.png',
+        'image': AppAssets.disabledCategoryUrl,
+        'fallbackIcon': AppAssets.helpSupport,
       },
     ];
 
@@ -229,19 +231,7 @@ class NgoCategoriesScreen extends StatelessWidget {
                         imageUrl: cat['image'] as String,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: AppTheme.greyBg300,
-                          child: Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppTheme.primaryDeepBlue,
-                              ),
-                            ),
-                          ),
-                        ),
+                        placeholder: (context, url) => const ShimmerWidget(width: double.infinity, height: double.infinity),
                         errorWidget: (context, url, error) => Container(
                           color: AppTheme.bannerBgColor,
                           padding: const EdgeInsets.all(16),

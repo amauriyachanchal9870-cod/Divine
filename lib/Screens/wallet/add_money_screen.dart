@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../Controller/profile_controller.dart';
+import '../../Utilities/helper.dart';
+import '../../Routes/my_routes.dart';
 import '../../Utilities/app_theme.dart';
+import '../../Controller/home_controller.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
 
@@ -12,6 +16,7 @@ class AddMoneyScreen extends StatefulWidget {
 }
 
 class _AddMoneyScreenState extends State<AddMoneyScreen> {
+  final ProfileController _profileController = Get.put(ProfileController());
   final TextEditingController _amountController = TextEditingController(text: "50");
 
   void _setAmount(String amount) {
@@ -31,7 +36,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 18),
           onPressed: () => Get.back(),
         ),
-        title: Text(AppString.addMoneyTitle.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
+        title: Text("Recharge", style: AppFonts.titleStyle.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
         centerTitle: false,
       ),
       body: Stack(
@@ -102,8 +107,28 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
-                    onPressed: () {
-                      // Logic to process payment
+                    onPressed: () async {
+                      final double? amount = double.tryParse(_amountController.text);
+                      if (amount == null || amount <= 0) {
+                        showSnackBar("Please enter a valid amount.", false);
+                        return;
+                      }
+                      if (amount < 50) {
+                        showSnackBar("Amount should be more than 50rs", false);
+                        return;
+                      }
+                      if (amount > 100000) {
+                        showSnackBar("Amount should be less than 100000rs", false);
+                        return;
+                      }
+
+                      final success = await _profileController.topupWallet(context, amount);
+                      if (success) {
+                        if (Get.isRegistered<HomeController>()) {
+                          Get.find<HomeController>().fetchHomeData();
+                        }
+                        Get.offAllNamed(MyRouters.mainNav);
+                      }
                     },
                     child: Text(
                       AppString.securelyAddMoney.tr,

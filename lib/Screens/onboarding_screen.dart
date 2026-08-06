@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../Utilities/app_theme.dart';
 import '../Utilities/app_string.dart';
+import '../Utilities/app_assets.dart';
 import '../Utilities/app_fonts.dart';
 import '../Utilities/custom_button.dart';
 import '../Routes/my_routes.dart';
@@ -20,17 +21,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<Map<String, String>> _onboardingData = [
     {
-      "image": "assets/images/onboarding1.png",
+      "image": AppAssets.onboarding1,
       "title": AppString.giveWithPurpose.tr,
       "subtitle": AppString.giveWithPurposeSub.tr,
     },
     {
-      "image": "assets/images/onboarding2.png",
+      "image": AppAssets.onboarding2,
       "title": AppString.raiseForACause.tr,
       "subtitle": AppString.raiseForACauseSub.tr,
     },
     {
-      "image": "assets/images/onboarding3.png",
+      "image": AppAssets.onboarding3,
       "title": AppString.trustedAndTransparent.tr,
       "subtitle": AppString.trustedAndTransparentSub.tr,
     },

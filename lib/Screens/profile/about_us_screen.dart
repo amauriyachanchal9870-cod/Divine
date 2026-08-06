@@ -2,10 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Controller/profile_controller.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
-class AboutUsScreen extends StatelessWidget {
+class AboutUsScreen extends StatefulWidget {
   const AboutUsScreen({super.key});
+
+  @override
+  State<AboutUsScreen> createState() => _AboutUsScreenState();
+}
+
+class _AboutUsScreenState extends State<AboutUsScreen> {
+  final ProfileController _profileController = Get.find<ProfileController>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _profileController.fetchContent(context, 'about-us');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,24 +39,37 @@ class AboutUsScreen extends StatelessWidget {
         title: Text(AppString.aboutUs.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
         centerTitle: false,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 16),
-              Text(
-                AppString.empoweringChange.tr,
-                style: AppFonts.titleStyle.copyWith(fontSize: 24, height: 1.3),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                AppString.aboutUsBody.tr,
-                style: AppFonts.regularText.copyWith(fontSize: 14, color: AppTheme.textGrey500, height: 1.5),
-                textAlign: TextAlign.center,
-              ),
+      body: Obx(() {
+        if (_profileController.isLoading.value && _profileController.aboutContent.value.isEmpty) {
+          return Center(
+            child: LoadingAnimationWidget.threeRotatingDots(
+              color: AppTheme.primaryDeepBlue,
+              size: 50,
+            ),
+          );
+        }
+
+        final title = _profileController.aboutTitle.value;
+        final content = _profileController.aboutContent.value;
+
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 16),
+                Text(
+                  title.isNotEmpty ? title : AppString.empoweringChange.tr,
+                  style: AppFonts.titleStyle.copyWith(fontSize: 24, height: 1.3),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  content.isNotEmpty ? content : AppString.aboutUsBody.tr,
+                  style: AppFonts.regularText.copyWith(fontSize: 14, color: AppTheme.textGrey500, height: 1.5),
+                  textAlign: TextAlign.center,
+                ),
               const SizedBox(height: 32),
               
               _buildStatCard(Icons.monetization_on_outlined, "\$10M+", AppString.raisedForCharity.tr, isWide: true),
@@ -58,7 +89,7 @@ class AboutUsScreen extends StatelessWidget {
                   height: 160,
                   width: double.infinity,
                   color: Colors.grey[200], // Placeholder for image
-                  child: Image.asset('assets/images/campaign_image_1.png', fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.image, size: 50, color: Colors.grey)),
+                  child: Image.asset(AppAssets.campaignImage1, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.image, size: 50, color: Colors.grey)),
                 ),
               ),
               
@@ -90,9 +121,10 @@ class AboutUsScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
+      );
+    }),
+  );
+}
 
   Widget _buildStatCard(IconData icon, String value, String label, {bool isWide = false}) {
     return Container(

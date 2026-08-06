@@ -45,7 +45,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Image.asset(
-                      'assets/images/appLogo.png',
+                      AppAssets.appLogo,
                       width: 30,
                       height: 30,
                     ),

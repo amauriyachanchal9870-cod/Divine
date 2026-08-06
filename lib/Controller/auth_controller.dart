@@ -112,6 +112,18 @@ class AuthController extends GetxController {
         VerifyOtpModel verifyModel = VerifyOtpModel.fromJson(jsonResponse);
 
         if (verifyModel.status == true) {
+          String? userRole = verifyModel.data?.role;
+          bool isVerified = verifyModel.isVerified ?? verifyModel.data?.isVerified ?? false;
+
+          if (userRole == 'ngo' && verifyModel.isProfileComplete == true && !isVerified) {
+            await ManageTokens.clearUserTokens();
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('isProfileComplete');
+            await prefs.remove('role');
+            showSnackBar("Your profile is not verified", false);
+            return;
+          }
+
           showSnackBar(verifyModel.message ?? "OTP verified successfully", true);
 
           // Save token
@@ -125,7 +137,13 @@ class AuthController extends GetxController {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('isProfileComplete', verifyModel.isProfileComplete ?? false);
           
-          String? userRole = verifyModel.data?.role;
+          if (phone.isNotEmpty) {
+            await prefs.setString('userPhone', phone);
+          } else if (verifyModel.data?.phone != null && verifyModel.data!.phone!.isNotEmpty) {
+            await prefs.setString('userPhone', verifyModel.data!.phone!);
+          }
+          
+          userRole = verifyModel.data?.role;
           if (userRole != null && userRole.isNotEmpty) {
             await prefs.setString('role', userRole);
           } else {
@@ -160,7 +178,7 @@ class AuthController extends GetxController {
           "name": name,
           "email": email,
           "gender": gender,
-          "profilePhoto": profilePhoto.isEmpty ? "https://randomuser.me/api/portraits/women/44.jpg" : profilePhoto,
+          "profilePhoto": profilePhoto,
         },
         showResponse: true,
       );
@@ -209,6 +227,7 @@ class AuthController extends GetxController {
           final prefs = await SharedPreferences.getInstance();
           await prefs.remove('isProfileComplete');
           await prefs.remove('role');
+          await prefs.remove('userPhone');
           
           // Navigate back to login screen
           Get.offAllNamed(MyRouters.loginScreen);
@@ -274,7 +293,7 @@ class AuthController extends GetxController {
           "name": name,
           "email": email,
           "gender": gender,
-          "profilePhoto": photoUrl ?? "https://randomuser.me/api/portraits/women/44.jpg",
+          "profilePhoto": photoUrl ?? "",
         },
         showResponse: true,
       );
@@ -282,7 +301,6 @@ class AuthController extends GetxController {
       if (response != null) {
         var jsonResponse = jsonDecode(response);
         if (jsonResponse['status'] == true) {
-          showSnackBar(jsonResponse['message'] ?? "Profile set up successfully", true);
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('isProfileComplete', true);
           await prefs.setString('role', 'donor');
@@ -379,7 +397,7 @@ class AuthController extends GetxController {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('isProfileComplete', true);
           await prefs.setString('role', 'ngo');
-          Get.offAllNamed(MyRouters.successScreen);
+          Get.offAllNamed(MyRouters.successScreen, arguments: {'isNgo': true});
         } else {
           showSnackBar(jsonResponse['message'] ?? "Something went wrong", false);
         }
@@ -389,6 +407,34 @@ class AuthController extends GetxController {
     } finally {
       isLoading = false;
       update();
+    }
+  }
+
+  Future<bool> checkEmailAvailability(BuildContext context, String email) async {
+    try {
+      final response = await Repositories().postApi(
+        context: context,
+        url: ApiUrls.registerUrl,
+        mapData: {
+          "email": email,
+          "checkOnly": true,
+        },
+        showResponse: true,
+      );
+
+      if (response != null) {
+        var jsonResponse = jsonDecode(response);
+        if (jsonResponse['status'] == false &&
+            (jsonResponse['message']?.toString().toLowerCase().contains('email') == true ||
+             jsonResponse['message']?.toString().toLowerCase().contains('already') == true ||
+             jsonResponse['message']?.toString().toLowerCase().contains('exist') == true)) {
+          showSnackBar(jsonResponse['message'] ?? "Email is already registered with another account", false);
+          return false;
+        }
+      }
+      return true;
+    } catch (e) {
+      return true;
     }
   }
 }

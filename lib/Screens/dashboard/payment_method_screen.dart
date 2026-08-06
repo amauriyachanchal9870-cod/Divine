@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../Controller/profile_controller.dart';
+import '../../Controller/home_controller.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Utilities/helper.dart';
 import '../../Routes/my_routes.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
@@ -13,8 +16,17 @@ class PaymentMethodScreen extends StatefulWidget {
 }
 
 class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
-  int _selectedCardIndex = 0;
+  final ProfileController _profileController = Get.put(ProfileController());
+  int _selectedCardIndex = -2; // -2 = Wallet Payment, 0 = Mastercard, 1 = Visa, etc.
   int _selectedMoreOption = -1; // -1 = none, 0 = net banking, 1 = other wallets
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _profileController.fetchProfile(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,23 +50,45 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTaxNotice(),
-                  const SizedBox(height: 20),
-                  _buildSectionTitle(AppString.upiPayments.tr),
+                  // _buildTaxNotice(),
+                  // const SizedBox(height: 20),
+                  _buildSectionTitle("Wallet Payment"),
                   const SizedBox(height: 12),
-                  _buildUPIOptions(),
-                  const SizedBox(height: 12),
-                  _buildAddButton(AppString.addUpi.tr),
+                  _buildWalletOption(),
                   const SizedBox(height: 24),
-                  _buildSectionTitle(AppString.creditDebitAtmCard.tr),
-                  const SizedBox(height: 12),
-                  _buildCardOptions(),
-                  const SizedBox(height: 12),
-                  _buildAddButton(AppString.addCard.tr),
+                  // Disable UPI Payments section
+                  IgnorePointer(
+                    ignoring: true,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionTitle(AppString.upiPayments.tr),
+                          const SizedBox(height: 12),
+                          _buildUPIOptions(),
+                          const SizedBox(height: 12),
+                          _buildAddButton(AppString.addUpi.tr),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
-                  _buildSectionTitle(AppString.moreOptions.tr),
-                  const SizedBox(height: 12),
-                  _buildMoreOptions(),
+                  // Disable More Options section
+                  IgnorePointer(
+                    ignoring: true,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionTitle(AppString.moreOptions.tr),
+                          const SizedBox(height: 12),
+                          _buildMoreOptions(),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 32),
                   _buildSecurityFooter(),
                 ],
@@ -67,22 +101,63 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     );
   }
 
-  Widget _buildTaxNotice() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.taxNoticeBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.primaryDeepBlue.withValues(alpha: 0.15)),
-      ),
-      child: Text(
-        AppString.taxExemptNotice.tr,
-        style: AppFonts.regularText.copyWith(fontSize: 11, color: AppTheme.primaryDeepBlue, height: 1.5),
-        textAlign: TextAlign.center,
-      ),
-    );
+  Widget _buildWalletOption() {
+    return Obx(() {
+      final balance = _profileController.profileData.value?.walletBalance ?? 0.0;
+      final isSelected = _selectedCardIndex == -2;
+
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedCardIndex = -2;
+            _selectedMoreOption = -1;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: isSelected ? AppTheme.primaryDeepBlue : AppTheme.fieldBorderColor),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryDeepBlue.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.account_balance_wallet, color: AppTheme.primaryDeepBlue, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Payment Wallet", style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
+                    const SizedBox(height: 2),
+                    Text(
+                      "Available Balance: ₹${balance.toStringAsFixed(2)}",
+                      style: AppFonts.regularText.copyWith(fontSize: 11, color: AppTheme.textGrey500),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                color: isSelected ? AppTheme.primaryDeepBlue : AppTheme.fieldBorderColor,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
+
+
 
   Widget _buildSectionTitle(String title) {
     return Text(title, style: AppFonts.semiBoldText.copyWith(fontSize: 14, color: Colors.black87));
@@ -137,56 +212,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     );
   }
 
-  Widget _buildCardOptions() {
-    final cards = [
-      {'name': 'Mastercard ****6548', 'color': AppTheme.mastercardOrange, 'icon': Icons.credit_card},
-      {'name': 'Visa ****6548', 'color': AppTheme.visaBlue, 'icon': Icons.credit_card},
-    ];
 
-    return Column(
-      children: List.generate(cards.length, (index) {
-        final isSelected = _selectedCardIndex == index;
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              _selectedCardIndex = index;
-            });
-          },
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: isSelected ? AppTheme.primaryDeepBlue : AppTheme.fieldBorderColor),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: (cards[index]['color'] as Color).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Icon(cards[index]['icon'] as IconData, color: cards[index]['color'] as Color, size: 16),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(cards[index]['name'] as String, style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
-                ),
-                Icon(
-                  isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                  color: isSelected ? AppTheme.primaryDeepBlue : AppTheme.fieldBorderColor,
-                  size: 22,
-                ),
-              ],
-            ),
-          ),
-        );
-      }),
-    );
-  }
 
   Widget _buildMoreOptions() {
     return Column(
@@ -250,6 +276,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
   Widget _buildBottomBar() {
     final String amount = Get.arguments?['amount'] ?? '250';
+    final String campaignId = Get.arguments?['campaignId'] ?? '';
+    final bool isNgo = Get.arguments?['isNgo'] ?? false;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -272,8 +301,42 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               elevation: 0,
             ),
-            onPressed: () {
-              Get.toNamed(MyRouters.paymentSuccessScreen);
+            onPressed: () async {
+              if (_selectedCardIndex == -2) {
+                if (campaignId.isEmpty) {
+                  showSnackBar("Invalid campaign.", false);
+                  return;
+                }
+                final double amtVal = double.tryParse(amount) ?? 0.0;
+                if (amtVal < 50) {
+                  showSnackBar("Amount should be more than 50rs", false);
+                  return;
+                }
+                if (amtVal >= 10000000) {
+                  showSnackBar("Amount should be less than 10000000rs", false);
+                  return;
+                }
+
+                // Check wallet balance
+                final balance = _profileController.profileData.value?.walletBalance ?? 0.0;
+                if (balance < amtVal) {
+                  showSnackBar("Insufficient balance for donate", false);
+                  return;
+                }
+
+                final success = await _profileController.donateWithWallet(context, campaignId, amtVal, isNgo: isNgo);
+                if (success) {
+                  if (Get.isRegistered<HomeController>()) {
+                    Get.find<HomeController>().fetchHomeData();
+                  }
+                  Get.toNamed(MyRouters.paymentSuccessScreen);
+                }
+              } else {
+                if (Get.isRegistered<HomeController>()) {
+                  Get.find<HomeController>().fetchHomeData();
+                }
+                Get.toNamed(MyRouters.paymentSuccessScreen);
+              }
             },
             child: Text("${AppString.pay.tr} ₹$amount", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
           ),

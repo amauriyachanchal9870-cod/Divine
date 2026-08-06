@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/custom_button.dart';
 import '../../Routes/my_routes.dart';
@@ -22,7 +23,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-        titleText: AppString.loginSignYourAccount.tr,
+        titleText: AppString.chooseYourRole.tr,
+        showBackButton: false,
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -31,26 +33,21 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           children: [
             const SizedBox(height: 20),
             Text(
-              AppString.chooseYourRole.tr,
-              style: AppFonts.titleStyle.copyWith(fontSize: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
               AppString.chooseRoleMatches.tr,
-              style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500),
+              style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500,fontSize: 16),
             ),
             const SizedBox(height: 40),
             _buildRoleOption(
               title: AppString.donateAndFundraise.tr,
               subtitle: AppString.supportThroughDonations.tr,
-              imagePath: 'assets/images/donateAndFund.png',
+              imagePath: AppAssets.donateAndFund,
               value: 'DONOR',
             ),
             const SizedBox(height: 20),
             _buildRoleOption(
               title: AppString.ngoOrOrganization.tr,
               subtitle: AppString.createImpactInspireChange.tr,
-              imagePath: 'assets/images/ngo.png',
+              imagePath: AppAssets.ngo,
               value: 'NGO',
             ),
             const Spacer(),

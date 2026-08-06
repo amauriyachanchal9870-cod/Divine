@@ -1,20 +1,22 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../Controller/home_controller.dart';
-import '../../Model/home_model.dart';
+import '../../Widget/shimmer_widget.dart';
+import '../../Controller/active_campaigns_controller.dart';
+import '../../Model/campaign_details_model.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/app_assets.dart';
 import '../../Routes/my_routes.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class FundraisersScreen extends StatelessWidget {
   const FundraisersScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final HomeController homeController = Get.find<HomeController>();
+    final ActiveCampaignsController activeCampaignsController = Get.put(ActiveCampaignsController());
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -32,33 +34,40 @@ class FundraisersScreen extends StatelessWidget {
         centerTitle: false,
       ),
       body: Obx(() {
-        final campaigns = homeController.campaigns;
-
-        if (campaigns.isEmpty) {
+        if (activeCampaignsController.isLoading.value) {
           return Center(
-            child: Text(
-              "No fundraisers found",
-              style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500),
+            child: LoadingAnimationWidget.threeRotatingDots(
+              color: AppTheme.primaryDeepBlue,
+              size: 50,
             ),
           );
         }
 
+        final campaigns = activeCampaignsController.filteredCampaigns;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSearchBar(),
-            _buildCategories(),
+            _buildSearchBar(activeCampaignsController),
+            _buildCategories(activeCampaignsController),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                itemCount: campaigns.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final campaign = campaigns[index];
-                  return _buildCampaignCard(campaign);
-                },
-              ),
+              child: campaigns.isEmpty
+                  ? Center(
+                      child: Text(
+                        "No fundraisers found",
+                        style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: campaigns.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final campaign = campaigns[index];
+                        return _buildCampaignCard(campaign);
+                      },
+                    ),
             ),
           ],
         );
@@ -66,10 +75,9 @@ class FundraisersScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(ActiveCampaignsController controller) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: AppTheme.fieldBorderColor),
@@ -77,24 +85,37 @@ class FundraisersScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
+          const SizedBox(width: 16),
           const Icon(Icons.search, color: Colors.grey, size: 20),
           const SizedBox(width: 8),
-          Text(
-            AppString.searchForCampaigns.tr,
-            style: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 14),
+          Expanded(
+            child: TextField(
+              onChanged: (val) {
+                controller.searchQuery.value = val;
+              },
+              decoration: InputDecoration(
+                hintText: AppString.searchForCampaigns.tr,
+                hintStyle: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 14),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCategories() {
+  Widget _buildCategories(ActiveCampaignsController controller) {
     final categories = [
-      {'name': AppString.all.tr, 'icon': Icons.grid_view, 'selected': true},
-      {'name': AppString.medical.tr, 'icon': Icons.medical_services_outlined, 'selected': false},
-      {'name': AppString.education.tr, 'icon': AppAssets.books, 'selected': false},
-      {'name': AppString.emergency.tr, 'icon': Icons.warning_amber_rounded, 'selected': false},
-      {'name': AppString.animalWelfare.tr, 'icon': AppAssets.gau, 'selected': false},
+      {'key': 'All', 'name': AppString.all.tr, 'icon': Icons.grid_view},
+      {'key': 'Medical', 'name': AppString.medical.tr, 'icon': Icons.medical_services_outlined},
+      {'key': 'Education', 'name': AppString.education.tr, 'icon': AppAssets.books},
+      {'key': 'Emergency', 'name': AppString.emergency.tr, 'icon': Icons.warning_amber_rounded},
+      {'key': 'Animal Welfare', 'name': AppString.animalWelfare.tr, 'icon': AppAssets.gau},
+      {'key': 'Religious', 'name': "Religious".tr, 'icon': Icons.temple_hindu_outlined},
+      {'key': 'NGO Welfare', 'name': "NGO Welfare".tr, 'icon': Icons.volunteer_activism_outlined},
     ];
 
     return SizedBox(
@@ -105,51 +126,61 @@ class FundraisersScreen extends StatelessWidget {
         itemCount: categories.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
-          final isSelected = categories[index]['selected'] as bool;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: isSelected ? AppTheme.primaryDeepBlue : Colors.white,
-              border: isSelected ? Border.all(color: AppTheme.primaryDeepBlue) : Border.all(color: AppTheme.fieldBorderColor),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                categories[index]['icon'] is IconData
-                    ? Icon(
-                        categories[index]['icon'] as IconData,
-                        size: 14,
-                        color: isSelected ? Colors.white : Colors.black54,
-                      )
-                    : Image.asset(
-                        categories[index]['icon'] as String,
-                        width: 14,
-                        height: 14,
-                        errorBuilder: (context, error, stackTrace) => Icon(
-                          Icons.category,
-                          size: 14,
-                          color: isSelected ? Colors.white : Colors.black54,
-                        ),
-                      ),
-                const SizedBox(width: 6),
-                Text(
-                  categories[index]['name'] as String,
-                  style: AppFonts.semiBoldText.copyWith(
-                    color: isSelected ? Colors.white : Colors.black87,
-                    fontSize: 12,
-                  ),
+          final catKey = categories[index]['key'] as String;
+          return Obx(() {
+            final isSelected = controller.selectedCategory.value == catKey;
+            return GestureDetector(
+              onTap: () {
+                controller.selectedCategory.value = catKey;
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.primaryDeepBlue : Colors.white,
+                  border: isSelected 
+                      ? Border.all(color: AppTheme.primaryDeepBlue) 
+                      : Border.all(color: AppTheme.fieldBorderColor),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ],
-            ),
-          );
+                child: Row(
+                  children: [
+                    categories[index]['icon'] is IconData
+                        ? Icon(
+                            categories[index]['icon'] as IconData,
+                            size: 14,
+                            color: isSelected ? Colors.white : Colors.black54,
+                          )
+                        : Image.asset(
+                            categories[index]['icon'] as String,
+                            width: 14,
+                            height: 14,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              Icons.category,
+                              size: 14,
+                              color: isSelected ? Colors.white : Colors.black54,
+                            ),
+                          ),
+                    const SizedBox(width: 6),
+                    Text(
+                      categories[index]['name'] as String,
+                      style: AppFonts.semiBoldText.copyWith(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          });
         },
       ),
     );
   }
 
-  Widget _buildCampaignCard(HomeCampaign c) {
+  Widget _buildCampaignCard(CampaignDetailsData c) {
     return GestureDetector(
-      onTap: () => Get.toNamed(MyRouters.campaignDetailsScreen),
+      onTap: () => Get.toNamed(MyRouters.campaignDetailsScreen, arguments: c.sId),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -167,11 +198,7 @@ class FundraisersScreen extends StatelessWidget {
                       height: 160,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      placeholder: (ctx, url) => Container(
-                        height: 160,
-                        color: Colors.grey.shade200,
-                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                      ),
+                      placeholder: (ctx, url) => const ShimmerWidget(height: 160, width: double.infinity),
                       errorWidget: (ctx, url, err) => Image.asset(
                         AppAssets.campaignImage,
                         height: 160,
@@ -203,8 +230,8 @@ class FundraisersScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("₹ ${c.raised} raised", style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.progressGreen)),
-                      Text("of ${c.goal}", style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
+                      Text("${c.formattedRaised} raised", style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.progressGreen)),
+                      Text("of ${c.formattedGoal}", style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -238,7 +265,7 @@ class FundraisersScreen extends StatelessWidget {
                         elevation: 0,
                       ),
                       onPressed: () {
-                        Get.toNamed(MyRouters.donateAmountScreen);
+                        Get.toNamed(MyRouters.donateAmountScreen, arguments: c);
                       },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,

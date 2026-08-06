@@ -13,35 +13,7 @@ class MyReviewsScreen extends StatefulWidget {
 
 class _MyReviewsScreenState extends State<MyReviewsScreen> {
   // Demo state for reviews
-  final List<Map<String, dynamic>> reviews = [
-    {
-      "id": 1,
-      "author": "Avalon",
-      "time": "Yesterday",
-      "title": "Hydrating Coconut Infusion Shampoo",
-      "content": "This shampoo delivers intense moisture, leaving hair soft and manageable. Enriched with natural coconut extract, it nourishes and revitalizes dry strands while providing a tropical aroma that invigorates the senses!",
-      "isPinned": false,
-      "helpfulCount": 4,
-    },
-    {
-      "id": 2,
-      "author": "Avalon",
-      "time": "Yesterday",
-      "title": "Hydrating Coconut Infusion Shampoo",
-      "content": "This shampoo delivers intense moisture, leaving hair soft and manageable. Enriched with natural coconut extract, it nourishes and revitalizes dry strands while providing a tropical aroma that invigorates the senses!",
-      "isPinned": true,
-      "helpfulCount": 2,
-    },
-    {
-      "id": 3,
-      "author": "Avalon",
-      "time": "Yesterday",
-      "title": "Hydrating Coconut Infusion Shampoo",
-      "content": "This shampoo delivers intense moisture, leaving hair soft and manageable. Enriched with natural coconut extract, it nourishes and revitalizes dry strands while providing a tropical aroma that invigorates the senses!",
-      "isPinned": false,
-      "helpfulCount": 0,
-    },
-  ];
+  final List<Map<String, dynamic>> reviews = [];
 
   void _showMenuBottomSheet(BuildContext context, Map<String, dynamic> review) {
     showModalBottomSheet(
@@ -135,26 +107,23 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         textBaseline: TextBaseline.alphabetic,
                         children: [
-                          Text(
-                            "4.4", 
-                            style: AppFonts.titleStyle.copyWith(fontSize: 48, fontWeight: FontWeight.w800, color: Colors.black87)
-                          ),
+                          Text("0.0", style: AppFonts.titleStyle.copyWith(fontSize: 48, fontWeight: FontWeight.w800, color: Colors.black87)),
                           const SizedBox(width: 4),
                           Icon(Icons.star, color: AppTheme.amberStars, size: 24),
                         ],
                       ),
-                      Text(AppString.ratingsCount.tr, style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
+                      Text("0 ratings", style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
                     ],
                   ),
                   const SizedBox(width: 24),
                   Expanded(
                     child: Column(
                       children: [
-                        _buildRatingBarRow("5", 0.8),
-                        _buildRatingBarRow("4", 0.65),
-                        _buildRatingBarRow("3", 0.2),
-                        _buildRatingBarRow("2", 0.05),
-                        _buildRatingBarRow("1", 0.08),
+                        _buildRatingBarRow("5", 0.0),
+                        _buildRatingBarRow("4", 0.0),
+                        _buildRatingBarRow("3", 0.0),
+                        _buildRatingBarRow("2", 0.0),
+                        _buildRatingBarRow("1", 0.0),
                       ],
                     ),
                   ),
@@ -171,7 +140,7 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    AppString.reviewsCount.tr, 
+                    "0 Reviews", 
                     style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: Colors.black87),
                   ),
                   const SizedBox(height: 16),
@@ -190,16 +159,29 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
             const SizedBox(height: 24),
             
             // List of Review Cards
-            ListView.separated(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              itemCount: reviews.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 20),
-              itemBuilder: (context, index) {
-                return _buildReviewCard(reviews[index]);
-              },
-            ),
+            reviews.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.rate_review_outlined, color: AppTheme.textGrey400, size: 40),
+                          const SizedBox(height: 12),
+                          Text("No review available", style: AppFonts.semiBoldText.copyWith(color: AppTheme.textGrey500)),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    itemCount: reviews.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 20),
+                    itemBuilder: (context, index) {
+                      return _buildReviewCard(reviews[index]);
+                    },
+                  ),
             const SizedBox(height: 40),
           ],
         ),

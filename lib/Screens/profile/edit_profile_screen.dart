@@ -1,9 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../Widget/shimmer_widget.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_assets.dart';
+import '../../Utilities/helper.dart';
 import '../../Controller/profile_controller.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -23,6 +28,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
   late TextEditingController _aboutController;
+  File? _imageFile;
 
   String _countryCode = "+91";
   String _selectedGender = "Male";
@@ -31,16 +37,49 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     final ProfileController profileController = Get.put(ProfileController());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      profileController.fetchProfile(context).then((_) {
+        final p = profileController.profileData.value;
+        if (p != null && mounted) {
+          setState(() {
+            if (p.organizationName != null && p.organizationName!.isNotEmpty) {
+              _orgNameController.text = p.organizationName!;
+            }
+            if (p.registeredAddress != null && p.registeredAddress!.isNotEmpty) {
+              _addressController.text = p.registeredAddress!;
+            }
+            if (p.name != null && p.name!.isNotEmpty) {
+              _nameController.text = p.name!;
+            }
+            if (p.email != null && p.email!.isNotEmpty) {
+              _emailController.text = p.email!;
+            }
+            if (p.phone != null && p.phone!.isNotEmpty) {
+              String ph = p.phone!;
+              if (ph.startsWith("+91")) {
+                _phoneController.text = ph.substring(3).trim();
+              } else {
+                _phoneController.text = ph;
+              }
+            }
+            if (p.impactStats != null && p.impactStats!.isNotEmpty) {
+              _yearsController.text = p.impactStats!;
+              _aboutController.text = p.impactStats!;
+            }
+          });
+        }
+      });
+    });
+
     final p = profileController.profileData.value;
 
     _nameController = TextEditingController(text: p?.name ?? "");
-    _orgNameController = TextEditingController(text: p?.organizationName ?? "Green Earth Foundation");
-    _addressController = TextEditingController(text: p?.registeredAddress ?? "405, Meghmalhar CHS, CRYSTAL ARMUS, Narayan, Mumbai");
-    _yearsController = TextEditingController(text: p?.impactStats ?? "100");
-    _emailController = TextEditingController(text: p?.email ?? "admin@gmail.com");
-    _aboutController = TextEditingController(
-      text: (p?.impactStats != null && p!.impactStats!.isNotEmpty) ? p.impactStats : "Since our founding over 100 years ago, we have changed the lives of over 1 billion children. We believe every child deserves a future. In more than 120 countries, we work every day to give children a healthy start in life."
-    );
+    _orgNameController = TextEditingController(text: p?.organizationName ?? p?.name ?? "");
+    _addressController = TextEditingController(text: p?.registeredAddress ?? "");
+    _yearsController = TextEditingController(text: p?.impactStats ?? "");
+    _emailController = TextEditingController(text: p?.email ?? "");
+    _aboutController = TextEditingController(text: p?.impactStats ?? "");
 
     String phoneVal = p?.phone ?? "";
     if (phoneVal.startsWith("+")) {
@@ -57,7 +96,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         }
       }
     } else {
-      _phoneController = TextEditingController(text: phoneVal.isEmpty ? "7643547698" : phoneVal);
+      _phoneController = TextEditingController(text: phoneVal);
     }
 
     if (p?.gender != null && p!.gender!.isNotEmpty) {
@@ -75,6 +114,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _emailController.dispose();
     _aboutController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 25,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    );
+    if (image != null) {
+      setState(() {
+        _imageFile = File(image.path);
+      });
+    }
   }
 
   void _showEditPhoneBottomSheet(BuildContext context) {
@@ -390,44 +444,65 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               children: [
                 // Profile Avatar Edit section
                 Center(
-                  child: Stack(
-                    children: [
-                      Obx(() {
-                        final p = profileController.profileData.value;
-                        final profilePhoto = p?.profilePhoto ?? p?.logo ?? '';
-                        return Container(
-                          width: 96,
-                          height: 96,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppTheme.greyBg100,
-                            border: Border.all(color: AppTheme.fieldBorderColor, width: 2),
-                          ),
-                          child: CircleAvatar(
-                            backgroundColor: Colors.transparent,
-                            backgroundImage: profilePhoto.isNotEmpty
-                                ? NetworkImage(profilePhoto) as ImageProvider
-                                : const AssetImage(AppAssets.ngoLogo),
-                          ),
-                        );
-                      }),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Colors.black87,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.edit_outlined,
-                            color: AppTheme.whiteColor,
-                            size: 14,
+                  child: GestureDetector(
+                    onTap: _pickImage,
+                    child: Stack(
+                      children: [
+                        Obx(() {
+                          final p = profileController.profileData.value;
+                          final profilePhoto = p?.profilePhoto ?? p?.logo ?? '';
+                          return Container(
+                            width: 96,
+                            height: 96,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppTheme.greyBg100,
+                              border: Border.all(color: AppTheme.fieldBorderColor, width: 2),
+                            ),
+                            child: ClipOval(
+                              child: _imageFile != null
+                                  ? Image.file(_imageFile!, width: 96, height: 96, fit: BoxFit.cover)
+                                  : profilePhoto.isNotEmpty
+                                      ? CachedNetworkImage(
+                                          imageUrl: profilePhoto,
+                                          width: 96,
+                                          height: 96,
+                                          fit: BoxFit.cover,
+                                          placeholder: (c, u) => const ShimmerWidget(width: 96, height: 96, borderRadius: BorderRadius.all(Radius.circular(48))),
+                                          errorWidget: (c, u, e) => Container(
+                                            width: 96,
+                                            height: 96,
+                                            color: Colors.grey.shade200,
+                                            child: const Icon(Icons.person, size: 50, color: Colors.grey),
+                                          ),
+                                        )
+                                      : Container(
+                                          width: 96,
+                                          height: 96,
+                                          color: Colors.grey.shade200,
+                                          child: const Icon(Icons.person, size: 50, color: Colors.grey),
+                                        ),
+                            ),
+                          );
+                        }),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.black87,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.edit_outlined,
+                              color: AppTheme.whiteColor,
+                              size: 14,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -624,15 +699,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       if (_formKey.currentState!.validate()) {
-                        Get.back();
-                        Get.snackbar(
-                          AppString.success.tr, 
-                          AppString.profileUpdatedSuccessfully.tr, 
-                          backgroundColor: AppTheme.greenColor, 
-                          colorText: AppTheme.whiteColor
-                        );
+                        if (isDonor) {
+                          bool success = await profileController.updateProfile(
+                            context: context,
+                            mapData: {
+                              "name": _nameController.text.trim(),
+                              "email": _emailController.text.trim(),
+                              "gender": _selectedGender,
+                            },
+                          );
+                          if (success) {
+                            Get.back();
+                            showSnackBar(AppString.profileUpdatedSuccessfully.tr, true);
+                          }
+                        } else {
+                          bool success = await profileController.updateProfile(
+                            context: context,
+                            mapData: {
+                              "name": _orgNameController.text.trim(),
+                              "organizationName": _orgNameController.text.trim(),
+                              "email": _emailController.text.trim(),
+                              "registeredAddress": _addressController.text.trim(),
+                              "years": _yearsController.text.trim(),
+                              "about": _aboutController.text.trim(),
+                            },
+                          );
+                          if (success) {
+                            Get.back();
+                            showSnackBar(AppString.profileUpdatedSuccessfully.tr, true);
+                          }
+                        }
                       }
                     },
                     child: Text(

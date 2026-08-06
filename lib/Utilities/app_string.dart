@@ -32,6 +32,7 @@ class AppString extends GetxController{
   static String profileSetup = "profileSetup";
   static String addYourPhoto = "addYourPhoto";
   static String enterYourPhone = "enterYourPhone";
+  static String enterPhoneNo = "Enter Phone Number";
   static String signupTitle = "signupTitle";
   static String enterMobileNumberError = "enterMobileNumberError";
   static String enterValidMobileNumberError = "enterValidMobileNumberError";
@@ -227,6 +228,7 @@ class AppString extends GetxController{
   static String deactivateAccountButton = "deactivateAccountButton";
   static String cancel = "cancel";
   static String delete = "delete";
+  static String deactivate = "Deactivate";
   static String areYouSureDeactivate = "areYouSureDeactivate";
   static String smsNotification = "smsNotification";
   static String emailNotification = "emailNotification";
@@ -395,6 +397,29 @@ class AppString extends GetxController{
   static String rateUs = "rateUs";
   static String noDataFound = "noDataFound";
   static String ngoDetails = "ngoDetails";
+  static String divineUser = "divineUser";
+  static String emailExample = "emailExample";
+  static String totalDonatedMock = "totalDonatedMock";
+  static String defaultPhonePlaceholder = "defaultPhonePlaceholder";
+  static String resendInSeconds = "resendInSeconds";
+  static String phoneMissingError = "phoneMissingError";
+  static String enterCompleteOtpError = "enterCompleteOtpError";
+  static String retry = "retry";
+  static String userFallback = "userFallback";
+  static String helloUser = "helloUser";
+  static String rupeeBalanceFormat = "rupeeBalanceFormat";
+  static String noCampaignsAvailable = "noCampaignsAvailable";
+  static String amountRaised = "amountRaised";
+  static String amountGoal = "amountGoal";
+  static String donorsCount = "donorsCount";
+  static String daysLeftCount = "daysLeftCount";
+  static String noNgosAvailable = "noNgosAvailable";
+  static String byDonor = "byDonor";
+  static String rupeeAmountFormat = "rupeeAmountFormat";
+  static String failedToLoadNotifications = "failedToLoadNotifications";
+  static String noResponseFromServer = "noResponseFromServer";
+  static String errorPrefix = "errorPrefix";
+  static String markAllAsRead = "markAllAsRead";
 }
 
 class AppTranslations extends Translations {
@@ -501,7 +526,7 @@ class AppTranslations extends Translations {
       'donateNow': 'Donate Now',
       'topNGOs': 'Top NGOs',
       'follow': 'Follow',
-      'donationHistory': 'DONATION HISTORY',
+      'donationHistory': 'Donation History',
       'wallet': 'Wallet',
       'profile': 'Profile',
       'search': 'Search',
@@ -672,7 +697,7 @@ class AppTranslations extends Translations {
       'notificationLabel': 'Notification',
       'chooseYourRole': 'Choose your role',
       'chooseRoleMatches': 'Choose the role that matches your purpose.',
-      'donateAndFundraise': 'Donate & Fundraise',
+      'donateAndFundraise': 'As Individual',
       'supportThroughDonations': 'Support through donations and fundraising.',
       'ngoOrOrganization': 'NGO / Organization',
       'createImpactInspireChange': 'Create impact. Inspire change. Transform lives.',
@@ -779,9 +804,9 @@ class AppTranslations extends Translations {
       'redeemed': 'Redeemed',
       'couponsRedeemedSuccess': 'Coupons redeemed successfully!',
       'redeemNow': 'Redeem Now',
-      'ratingsAndReviewsUpper': 'RATINGS & REVIEWS',
-      'ratingsCount': '688 ratings',
-      'reviewsCount': 'REVIEWS (236)',
+      'ratingsAndReviewsUpper': 'Ratings & Reviews',
+      'ratingsCount': 'ratings',
+      'reviewsCount': 'Review',
       'byUsers': 'By Users',
       'sortBy': 'Sort by',
       'rating': 'Rating',
@@ -815,6 +840,29 @@ class AppTranslations extends Translations {
       'rateUs': 'Rate Us',
       'noDataFound': 'No NGOs found for this search/category.',
       'ngoDetails': "NGO's Details",
+      'divineUser': 'Divine User',
+      'emailExample': 'email@example.com',
+      'totalDonatedMock': '₹500',
+      'defaultPhonePlaceholder': '+91 ********74',
+      'resendInSeconds': 'Resend in @seconds s',
+      'phoneMissingError': 'Phone number is missing',
+      'enterCompleteOtpError': 'Please enter the complete OTP',
+      'retry': 'Retry',
+      'userFallback': 'User',
+      'helloUser': 'Hello @name !',
+      'rupeeBalanceFormat': '₹ @balance',
+      'noCampaignsAvailable': 'No campaigns available',
+      'amountRaised': '@amount raised',
+      'amountGoal': 'of @goal',
+      'donorsCount': '@count Donors',
+      'daysLeftCount': '@days days left',
+      'noNgosAvailable': 'No NGOs available',
+      'byDonor': 'by @donor',
+      'rupeeAmountFormat': '₹ @amount',
+      'failedToLoadNotifications': 'Failed to load notifications.',
+      'noResponseFromServer': 'No response from server.',
+      'errorPrefix': 'Error: @error',
+      'markAllAsRead': 'Mark all as read',
     },
     'es': {
       'onBoardingText': 'Jorem ipsum dolor sit amet, conse (ES)',
@@ -1083,6 +1131,29 @@ class AppTranslations extends Translations {
       'rateUs': 'Calificanos',
       'noDataFound': 'No se encontraron ONG para esta búsqueda/categoría.',
       'ngoDetails': 'Detalles de la ONG',
+      'divineUser': 'Usuario Divino',
+      'emailExample': 'correo@ejemplo.com',
+      'totalDonatedMock': '₹500',
+      'defaultPhonePlaceholder': '+91 ********74',
+      'resendInSeconds': 'Reenviar en @seconds s',
+      'phoneMissingError': 'Falta el número de teléfono',
+      'enterCompleteOtpError': 'Por favor ingrese el OTP completo',
+      'retry': 'Reintentar',
+      'userFallback': 'Usuario',
+      'helloUser': '¡Hola @name !',
+      'rupeeBalanceFormat': '₹ @balance',
+      'noCampaignsAvailable': 'No hay campañas disponibles',
+      'amountRaised': '@amount recaudado',
+      'amountGoal': 'de @goal',
+      'donorsCount': '@count Donantes',
+      'daysLeftCount': 'quedan @days días',
+      'noNgosAvailable': 'No hay ONGs disponibles',
+      'byDonor': 'por @donor',
+      'rupeeAmountFormat': '₹ @amount',
+      'failedToLoadNotifications': 'No se pudieron cargar las notificaciones.',
+      'noResponseFromServer': 'Sin respuesta del servidor.',
+      'errorPrefix': 'Error: @error',
+      'markAllAsRead': 'Marcar todo como leído',
     },
     'ru': {
       'onBoardingText': 'Jorem ipsum dolor sit amet, conse (RU)',
@@ -1351,6 +1422,29 @@ class AppTranslations extends Translations {
       'rateUs': 'Оценить',
       'noDataFound': 'НПО по этому поисковому запросу/категории не найдены.',
       'ngoDetails': 'Детали НПО',
+      'divineUser': 'Божественный пользователь',
+      'emailExample': 'email@example.com',
+      'totalDonatedMock': '₹500',
+      'defaultPhonePlaceholder': '+91 ********74',
+      'resendInSeconds': 'Повторить отправку через @seconds сек',
+      'phoneMissingError': 'Номер телефона отсутствует',
+      'enterCompleteOtpError': 'Пожалуйста, введите полный OTP',
+      'retry': 'Повторить',
+      'userFallback': 'Пользователь',
+      'helloUser': 'Привет, @name !',
+      'rupeeBalanceFormat': '₹ @balance',
+      'noCampaignsAvailable': 'Нет доступных кампаний',
+      'amountRaised': 'собрано @amount',
+      'amountGoal': 'из @goal',
+      'donorsCount': 'Доноров: @count',
+      'daysLeftCount': 'осталось дней: @days',
+      'noNgosAvailable': 'Нет доступных НПО',
+      'byDonor': 'от @donor',
+      'rupeeAmountFormat': '₹ @amount',
+      'failedToLoadNotifications': 'Не удалось загрузить уведомления.',
+      'noResponseFromServer': 'Нет ответа от сервера.',
+      'errorPrefix': 'Ошибка: @error',
+      'markAllAsRead': 'Отметить все как прочитанные',
     },
   };
 }

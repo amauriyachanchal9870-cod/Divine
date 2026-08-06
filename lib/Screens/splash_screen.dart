@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../Utilities/app_theme.dart';
+import '../Utilities/app_assets.dart';
 import '../Routes/my_routes.dart';
 import '../Token Manager/token_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,8 +21,7 @@ class _SplashScreenState extends State<SplashScreen> {
       var headers = await ManageTokens.getTokenHeaders();
       SharedPreferences prefs = await SharedPreferences.getInstance();
       bool isFirstTime = prefs.getBool('isFirstTime') ?? true;
-      bool isProfileComplete = prefs.getBool('isProfileComplete') ?? true;
-      String? role = prefs.getString('role');
+      bool isProfileComplete = prefs.getBool('isProfileComplete') ?? false;
 
       if (isFirstTime) {
         Get.offAllNamed(MyRouters.onboardingScreen);
@@ -29,7 +29,7 @@ class _SplashScreenState extends State<SplashScreen> {
         if (isProfileComplete) {
           Get.offAllNamed(MyRouters.mainNav);
         } else {
-          Get.offAllNamed(MyRouters.roleSelectionScreen);
+          Get.offAllNamed(MyRouters.loginScreen);
         }
       } else {
         Get.offAllNamed(MyRouters.loginScreen);
@@ -59,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Image.asset(
-                'assets/images/appLogo.png',
+                AppAssets.appLogo,
                 width: 200,
                 errorBuilder: (context, error, stackTrace) {
                   return Text(

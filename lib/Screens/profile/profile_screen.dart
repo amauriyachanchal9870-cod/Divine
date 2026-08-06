@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../Widget/shimmer_widget.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
@@ -7,6 +9,10 @@ import '../../Utilities/app_assets.dart';
 import '../../Routes/my_routes.dart';
 import '../../Controller/auth_controller.dart';
 import '../../Controller/profile_controller.dart';
+import '../../Controller/home_controller.dart';
+import '../../Controller/wallet_controller.dart';
+import '../dashboard/main_navigation_screen.dart';
+import '../../Utilities/helper.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -24,6 +30,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       profileController.fetchProfile(context);
+      if (Get.isRegistered<HomeController>()) {
+        Get.find<HomeController>().fetchHomeData();
+      } else {
+        Get.put(HomeController());
+      }
+      if (Get.isRegistered<WalletController>()) {
+        Get.find<WalletController>().fetchWalletData();
+      } else {
+        Get.put(WalletController());
+      }
     });
   }
 
@@ -33,7 +49,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: AppTheme.whiteColor,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => profileController.fetchProfile(context),
+          onRefresh: () async {
+            await profileController.fetchProfile(context);
+            if (Get.isRegistered<HomeController>()) {
+              await Get.find<HomeController>().fetchHomeData();
+            }
+            if (Get.isRegistered<WalletController>()) {
+              await Get.find<WalletController>().fetchWalletData();
+            }
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Padding(
@@ -74,8 +98,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           _buildMenuTile(
                             AppAssets.createCampaign, 
-                            AppString.createCampaign.tr, 
-                            () => Get.toNamed(MyRouters.raiseCampaignWizardScreen)
+                            "Raise Campaign".tr, 
+                            () => mainNavKey.currentState?.changeTab(2)
                           ),
                           _buildMenuTile(
                             AppAssets.activeCampaign, 
@@ -84,7 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           _buildMenuTile(
                             AppAssets.follows, 
-                            "Following NGOs", 
+                            AppString.followingNgos.tr, 
                             () => Get.toNamed(MyRouters.followingNgosScreen)
                           ),
                           _buildMenuTile(
@@ -106,8 +130,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           _buildMenuTile(
                             AppAssets.createCampaign, 
-                            AppString.createCampaign.tr, 
-                            () => Get.toNamed(MyRouters.raiseCampaignWizardScreen)
+                            "Raise Campaign".tr, 
+                            () => mainNavKey.currentState?.changeTab(2)
                           ),
                           _buildMenuTile(
                             AppAssets.activeCampaign, 
@@ -206,30 +230,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeaderCard() {
+    final homeController = Get.isRegistered<HomeController>() ? Get.find<HomeController>() : Get.put(HomeController());
+    
     return Obx(() {
       final p = profileController.profileData.value;
       if (profileController.isLoading.value && p == null) {
-        return Container(
+        return const ShimmerWidget(
           height: 140,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.fieldBorderColor.withValues(alpha: 0.5)),
-          ),
-          child: const CircularProgressIndicator(),
+          width: double.infinity,
+          borderRadius: BorderRadius.all(Radius.circular(16)),
         );
       }
 
-      final displayName = p != null
-          ? ((p.organizationName != null && p.organizationName!.isNotEmpty)
-              ? p.organizationName!
-              : (p.name != null && p.name!.isNotEmpty ? p.name! : "Divine User"))
-          : "Divine User";
-      final displayEmail = p?.email ?? "email@example.com";
-      final displayPhone = p?.phone ?? "";
-      final walletBalance = p?.walletBalance ?? 0.0;
-      final profilePhoto = p?.profilePhoto ?? p?.logo ?? '';
+      final orgName = p?.organizationName ?? "";
+      final personName = p?.name ?? homeController.user?.name ?? "";
+
+      final displayName = orgName.isNotEmpty
+          ? orgName
+          : (personName.isNotEmpty ? personName : AppString.divineUser.tr);
+
+      final displaySubName = (orgName.isNotEmpty && personName.isNotEmpty && orgName != personName)
+          ? personName
+          : "";
+
+      final displayEmail = (p?.email != null && p!.email!.isNotEmpty)
+          ? p.email!
+          : AppString.emailExample.tr;
+
+      final displayPhone = (p?.phone != null && p!.phone!.isNotEmpty)
+          ? p.phone!
+          : (homeController.user?.phone ?? "");
+      double walletBalance = p?.walletBalance ?? 0.0;
+      if (walletBalance == 0.0) {
+        if (Get.isRegistered<WalletController>() && Get.find<WalletController>().walletBalance.value > 0) {
+          walletBalance = Get.find<WalletController>().walletBalance.value;
+        } else if (homeController.homeData.value?.user?.walletBalance != null && (homeController.homeData.value!.user!.walletBalance ?? 0) > 0) {
+          walletBalance = homeController.homeData.value!.user!.walletBalance!.toDouble();
+        }
+      }
+      final String formattedWalletBalance = "₹ ${formatPrice(walletBalance)}";
+      final profilePhoto = p?.profilePhoto ?? p?.logo ?? homeController.user?.profilePhoto ?? '';
+
+      int totalDonate = homeController.homeData.value?.totalDonateAmount ?? 0;
+      if (totalDonate == 0 && homeController.donationHistory.isNotEmpty) {
+        totalDonate = homeController.donationHistory.fold<int>(0, (sum, item) => sum + (item.amount ?? 0));
+      }
+      final String formattedTotalDonate = "₹ ${formatPrice(totalDonate)}";
 
       return Container(
         padding: const EdgeInsets.all(16),
@@ -242,12 +288,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.grey.shade200,
-                  backgroundImage: profilePhoto.isNotEmpty
-                      ? NetworkImage(profilePhoto) as ImageProvider
-                      : const AssetImage(AppAssets.ngoLogo),
+                ClipOval(
+                  child: profilePhoto.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: profilePhoto,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          placeholder: (c, u) => const ShimmerWidget(width: 56, height: 56, borderRadius: BorderRadius.all(Radius.circular(28))),
+                          errorWidget: (c, u, e) => Container(
+                            width: 56,
+                            height: 56,
+                            color: Colors.grey.shade200,
+                            child: const Icon(Icons.person, size: 32, color: Colors.grey),
+                          ),
+                        )
+                      : Container(
+                          width: 56,
+                          height: 56,
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.person, size: 32, color: Colors.grey),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -260,6 +321,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (displaySubName.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          displaySubName, 
+                          style: AppFonts.mediumText.copyWith(fontSize: 12, color: Colors.black54),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Text(
                         displayEmail, 
@@ -284,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (p?.role == "donor") {
                       Get.toNamed(MyRouters.editProfileScreen);
                     } else {
-                      Get.toNamed(MyRouters.ngoDetailsScreen, arguments: {'isOwnProfile': true});
+                      Get.toNamed(MyRouters.ngoProfileDetailScreen);
                     }
                   },
                   child: Container(
@@ -317,7 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "₹${walletBalance.toStringAsFixed(0)}", 
+                          formattedWalletBalance, 
                           style: AppFonts.semiBoldText.copyWith(fontSize: 15, color: Colors.black87)
                         ),
                         Text(
@@ -336,7 +406,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "₹500", 
+                          formattedTotalDonate, 
                           style: AppFonts.semiBoldText.copyWith(fontSize: 15, color: Colors.black87)
                         ),
                         Text(

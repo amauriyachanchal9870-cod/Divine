@@ -91,35 +91,5 @@ class _CustomButtonState extends State<CustomButton> {
         ),
       ),
     );
-
-
-
-
-
-    return InkWell(
-      onTap: widget.onTap,
-      child: Container(
-          height: widget.height,
-          width: widget.width,
-          decoration: BoxDecoration(
-            color: widget.color ?? AppTheme.buttonColor,
-            borderRadius: BorderRadius.circular(4),
-            border: widget.border,
-          ),
-          alignment: Alignment.center,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                widget.title!,
-                style: TextStyle(
-                    color: widget.titleColor ?? AppTheme.whiteColor,
-                    fontSize: size.height*.018,
-                    fontWeight: FontWeight.w500),
-              ),
-            ],
-          )),
-    );
   }
 }

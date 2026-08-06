@@ -1,15 +1,45 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../Widget/shimmer_widget.dart';
+import '../../Controller/campaign_details_controller.dart';
+import '../../Model/campaign_details_model.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class CampaignDetailsScreen extends StatelessWidget {
   const CampaignDetailsScreen({super.key});
 
+  String _formatTimeAgo(String? dateStr) {
+    if (dateStr == null) return "Recently";
+    try {
+      DateTime date = DateTime.parse(dateStr).toLocal();
+      DateTime now = DateTime.now();
+      Duration difference = now.difference(date);
+      if (difference.inMinutes < 60) {
+        return "${difference.inMinutes} min ago";
+      } else if (difference.inHours < 24) {
+        return "${difference.inHours} hrs ago";
+      } else {
+        return "${difference.inDays} days ago";
+      }
+    } catch (e) {
+      return "Recently";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final String campaignId = Get.arguments as String? ?? "";
+    final CampaignDetailsController controller = Get.put(
+      CampaignDetailsController(campaignId: campaignId),
+      tag: campaignId,
+    );
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -21,49 +51,103 @@ class CampaignDetailsScreen extends StatelessWidget {
         ),
         title: Text(AppString.campaignDetails.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
         centerTitle: false,
-        actions: [
-          IconButton(icon: const Icon(Icons.share_outlined, color: Colors.black54, size: 20), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.bookmark_border, color: Colors.black54, size: 20), onPressed: () {}),
-        ],
+        // actions: [
+        //   IconButton(icon: const Icon(Icons.share_outlined, color: Colors.black54, size: 20), onPressed: () {}),
+        //   IconButton(icon: const Icon(Icons.bookmark_border, color: Colors.black54, size: 20), onPressed: () {}),
+        // ],
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 100),
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return Center(
+            child: LoadingAnimationWidget.threeRotatingDots(
+              color: AppTheme.primaryDeepBlue,
+              size: 50,
+            ),
+          );
+        }
+
+        if (controller.errorMessage.isNotEmpty) {
+          return Center(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildOrganizerRow(),
-                _buildHeaderImage(),
-                _buildCampaignInfo(),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                _buildDescription(),
+                Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: Colors.red.shade300,
+                ),
                 const SizedBox(height: 16),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                _buildRecentDonors(),
+                Text(
+                  controller.errorMessage.value,
+                  style: AppFonts.regularText.copyWith(
+                    fontSize: 14,
+                    color: Colors.red.shade400,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => controller.fetchCampaignDetails(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryDeepBlue,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text("Retry"),
+                ),
               ],
             ),
-          ),
-          _buildBottomBar(),
-        ],
-      ),
+          );
+        }
+
+        final data = controller.campaignDetails.value;
+        if (data == null) {
+          return Center(
+            child: Text(
+              "No campaign data found",
+              style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500),
+            ),
+          );
+        }
+
+        return Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildOrganizerRow(data),
+                  _buildHeaderImage(data),
+                  _buildCampaignInfo(data),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  _buildDescription(data),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  _buildRecentDonors(data),
+                ],
+              ),
+            ),
+            _buildBottomBar(data),
+          ],
+        );
+      }),
     );
   }
 
-  Widget _buildOrganizerRow() {
+  Widget _buildOrganizerRow(CampaignDetailsData data) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
       child: Row(
         children: [
           const CircleAvatar(
             radius: 18,
-            backgroundImage: AssetImage('assets/images/ngo_logo.png'),
+            backgroundImage: AssetImage(AppAssets.ngoLogo),
           ),
           const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Arjun Singh", style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
+              Text(data.user ?? "Organizer", style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
               Text("Organizer", style: AppFonts.regularText.copyWith(fontSize: 11, color: AppTheme.textGrey500)),
             ],
           ),
@@ -72,35 +156,49 @@ class CampaignDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderImage() {
-    return Image.asset(
-      'assets/images/campaign_image.png',
-      width: double.infinity,
-      height: 220,
-      fit: BoxFit.cover,
-    );
+  Widget _buildHeaderImage(CampaignDetailsData data) {
+    return data.imageUrl != null && data.imageUrl!.isNotEmpty
+        ? CachedNetworkImage(
+            imageUrl: data.imageUrl!,
+            width: double.infinity,
+            height: 220,
+            fit: BoxFit.cover,
+            placeholder: (ctx, url) => const ShimmerWidget(height: 220, width: double.infinity),
+            errorWidget: (ctx, url, err) => Image.asset(
+              AppAssets.campaignImage,
+              width: double.infinity,
+              height: 220,
+              fit: BoxFit.cover,
+            ),
+          )
+        : Image.asset(
+            AppAssets.campaignImage,
+            width: double.infinity,
+            height: 220,
+            fit: BoxFit.cover,
+          );
   }
 
-  Widget _buildCampaignInfo() {
+  Widget _buildCampaignInfo(CampaignDetailsData data) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Rural education Initiative", style: AppFonts.titleStyle.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(data.title ?? "", style: AppFonts.titleStyle.copyWith(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text("Providing supplies for 50 students", style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500, fontSize: 13)),
+          Text(data.category ?? "", style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500, fontSize: 13)),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("₹ 54,000 raised", style: AppFonts.semiBoldText.copyWith(fontSize: 14, color: AppTheme.progressGreen)),
-              Text("of 75k", style: AppFonts.regularText.copyWith(fontSize: 14, color: Colors.black)),
+              Text("${data.formattedRaised} raised", style: AppFonts.semiBoldText.copyWith(fontSize: 14, color: AppTheme.progressGreen)),
+              Text("of ${data.goal ?? '₹0'}", style: AppFonts.regularText.copyWith(fontSize: 14, color: Colors.black)),
             ],
           ),
           const SizedBox(height: 8),
           LinearProgressIndicator(
-            value: 54000 / 75000,
+            value: data.progress,
             backgroundColor: AppTheme.fieldBorderColor,
             color: AppTheme.progressGreen,
             minHeight: 6,
@@ -109,9 +207,9 @@ class CampaignDetailsScreen extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              _buildStatChip(Icons.people_outline, "1.3K Donors"),
+              _buildStatChip(Icons.people_outline, "${data.donorsCount ?? 0} Donors"),
               const SizedBox(width: 16),
-              _buildStatChip(Icons.timelapse_rounded, "12 days left"),
+              _buildStatChip(Icons.timelapse_rounded, "${data.daysLeft ?? 0} days left"),
             ],
           ),
           const SizedBox(height: 8),
@@ -130,7 +228,7 @@ class CampaignDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDescription() {
+  Widget _buildDescription(CampaignDetailsData data) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -139,7 +237,7 @@ class CampaignDetailsScreen extends StatelessWidget {
           Text(AppString.campaignDescription.tr, style: AppFonts.semiBoldText.copyWith(fontSize: 14, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Text(
-            "Technology is one of the most powerful equalizers of our time. This campaign is dedicated to bringing advanced coding labs to underserved rural communities, where potential is high but opportunities are limited. Our mission is to bridge the digital divide by providing modern hardware, reliable high-speed internet, and a well-structured STEM curriculum.\n\nOver the past three months, we've identified five key locations where talent is abundant but access to resources is scarce. Your support goes far beyond funding a laptop—it creates opportunities, builds skills, and connects students to the global economy. For many, this is not just access to technology; it's a chance to shape a brighter future.",
+            data.description ?? "",
             style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500, fontSize: 12, height: 1.6),
           ),
         ],
@@ -147,7 +245,10 @@ class CampaignDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentDonors() {
+  Widget _buildRecentDonors(CampaignDetailsData data) {
+    if (data.recentDonors == null || data.recentDonors!.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
@@ -160,9 +261,10 @@ class CampaignDetailsScreen extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 24),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: 2,
+            itemCount: data.recentDonors!.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
+              final donor = data.recentDonors![index];
               return Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -181,20 +283,20 @@ class CampaignDetailsScreen extends StatelessWidget {
                   children: [
                     const CircleAvatar(
                       radius: 20,
-                      backgroundImage: AssetImage('assets/images/ngo_logo.png'),
+                      backgroundImage: AssetImage(AppAssets.ngoLogo),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Jameson D.", style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
+                          Text(donor.name ?? "Anonymous", style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
                           const SizedBox(height: 2),
-                          Text("Donated ₹70", style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
+                          Text("Donated ₹${donor.amount ?? 0}", style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
                         ],
                       ),
                     ),
-                    Text("12 min ago", style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey400)),
+                    Text(_formatTimeAgo(donor.date), style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey400)),
                   ],
                 ),
               );
@@ -205,7 +307,7 @@ class CampaignDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomBar() {
+  Widget _buildBottomBar(CampaignDetailsData data) {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
@@ -231,7 +333,7 @@ class CampaignDetailsScreen extends StatelessWidget {
                 elevation: 0,
               ),
               onPressed: () {
-                Get.toNamed(MyRouters.donateAmountScreen);
+                Get.toNamed(MyRouters.donateAmountScreen, arguments: data);
               },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,

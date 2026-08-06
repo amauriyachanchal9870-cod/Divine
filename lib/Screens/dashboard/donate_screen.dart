@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
 
@@ -54,7 +55,7 @@ class DonateScreen extends StatelessWidget {
                     Expanded(
                       child: _buildDonateCard(
                         title: AppString.daan.tr,
-                        imagePath: 'assets/images/donateAndFund.png',
+                        imagePath: AppAssets.donateAndFund,
                         onTap: () {
                           Get.toNamed(MyRouters.chooseDaanTypeScreen);
                         },
@@ -64,7 +65,7 @@ class DonateScreen extends StatelessWidget {
                     Expanded(
                       child: _buildDonateCard(
                         title: AppString.fundraisers.tr,
-                        imagePath: 'assets/images/campaign_image.png',
+                        imagePath: AppAssets.campaignImage,
                         onTap: () {
                           Get.toNamed(MyRouters.fundraisersScreen);
                         },
@@ -222,7 +223,7 @@ class DonateScreen extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Image.asset(
-            'assets/images/donateAndFund.png',
+            AppAssets.donateAndFund,
             width: 90,
             height: 90,
             fit: BoxFit.contain,
@@ -293,7 +294,7 @@ class DonateScreen extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
         image: const DecorationImage(
-          image: AssetImage('assets/images/ngo_logo.png'),
+          image: AssetImage(AppAssets.ngoLogo),
           fit: BoxFit.cover,
         ),
       ),

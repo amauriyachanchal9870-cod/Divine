@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +10,7 @@ import '../../Utilities/custom_button.dart';
 import '../../Utilities/custom_textfield.dart';
 import '../../Utilities/helper.dart';
 import '../../Controller/auth_controller.dart';
+import '../../Routes/my_routes.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -24,6 +26,28 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   File? _imageFile;
   final AuthController authController = Get.put(AuthController());
+  late TapGestureRecognizer _termsRecognizer;
+  late TapGestureRecognizer _privacyRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _termsRecognizer = TapGestureRecognizer()..onTap = () {
+      Get.toNamed(MyRouters.termsConditionScreen);
+    };
+    _privacyRecognizer = TapGestureRecognizer()..onTap = () {
+      Get.toNamed(MyRouters.privacyPolicyScreen);
+    };
+  }
+
+  @override
+  void dispose() {
+    _termsRecognizer.dispose();
+    _privacyRecognizer.dispose();
+    nameController.dispose();
+    emailController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -119,6 +143,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 useBorder: true,
                 borderColor: AppTheme.fieldBorderColor,
                 borderRadius: 10,
+                maxLength: 100,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter your full name';
@@ -166,32 +191,34 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ],
               ),
               const SizedBox(height: 40),
-              CustomButton(
-                height: 50,
-                width: double.infinity,
-                title: AppString.continueText.tr,
-                onTap: () {
-                  if (_formKey.currentState!.validate()) {
-                    if (_imageFile == null) {
-                      showSnackBar("Please select a profile image", false);
-                      return;
-                    }
-                    if (selectedGender.isEmpty) {
-                     showSnackBar("Please select your gender", false);
-                      return;
-                    }
-                    authController.registerDonor(
-                      context: context,
-                      name: nameController.text.trim(),
-                      email: emailController.text.trim(),
-                      gender: selectedGender,
-                      profilePhoto: _imageFile,
-                    );
-                  }
-                },
-                color: AppTheme.primaryDeepBlue,
-                borderRadius: BorderRadius.circular(10),
-                showCenter: true,
+              GetBuilder<AuthController>(
+                builder: (auth) {
+                  return auth.isLoading 
+                    ? const Center(child: CircularProgressIndicator())
+                    : CustomButton(
+                        height: 50,
+                        width: double.infinity,
+                        title: AppString.continueText.tr,
+                        onTap: () {
+                          if (_formKey.currentState!.validate()) {
+                            if (selectedGender.isEmpty) {
+                             showSnackBar("Please select your gender", false);
+                              return;
+                            }
+                            authController.registerDonor(
+                              context: context,
+                              name: nameController.text.trim(),
+                              email: emailController.text.trim(),
+                              gender: selectedGender,
+                              profilePhoto: _imageFile,
+                            );
+                          }
+                        },
+                        color: AppTheme.primaryDeepBlue,
+                        borderRadius: BorderRadius.circular(10),
+                        showCenter: true,
+                      );
+                }
               ),
               const SizedBox(height: 16),
               Center(
@@ -203,11 +230,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       TextSpan(
                         text: AppString.termsOfService.tr,
                         style: AppFonts.verySmallText.copyWith(color: AppTheme.primaryDeepBlue),
+                        recognizer: _termsRecognizer,
                       ),
                       TextSpan(text: AppString.and.tr),
                       TextSpan(
                         text: AppString.privacyPolicy.tr,
                         style: AppFonts.verySmallText.copyWith(color: AppTheme.primaryDeepBlue),
+                        recognizer: _privacyRecognizer,
                       ),
                     ],
                   ),

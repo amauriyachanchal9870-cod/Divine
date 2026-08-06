@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import '../../Utilities/app_theme.dart';
-import '../../Utilities/app_fonts.dart';
 import '../../Controller/daan_controller.dart';
+import '../../Controller/profile_controller.dart';
+import '../../Controller/home_controller.dart';
+import '../../Utilities/app_theme.dart';
+import '../../Utilities/app_assets.dart';
+import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
+import '../../Utilities/helper.dart';
 
 class ReviewPayScreen extends StatelessWidget {
   const ReviewPayScreen({super.key});
@@ -12,6 +17,7 @@ class ReviewPayScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final DaanController controller = Get.find<DaanController>();
+    final ProfileController profileController = Get.find<ProfileController>();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -29,6 +35,10 @@ class ReviewPayScreen extends StatelessWidget {
         centerTitle: false,
       ),
       body: Obx(() {
+        final cartItems = controller.danItems
+            .where((item) => (controller.itemQtyMap[item.id ?? ''] ?? 0) > 0)
+            .toList();
+
         return Column(
           children: [
             Expanded(
@@ -37,7 +47,7 @@ class ReviewPayScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Cart Items Header Row
+                    // Cart Items Header Row with frequency toggle
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -49,7 +59,7 @@ class ReviewPayScreen extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9), // Light green background
+                            color: const Color(0xFFE8F5E9),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -60,14 +70,16 @@ class ReviewPayScreen extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
                                     color: controller.impactType.value == 'one_time'
-                                        ? const Color(0xFF2E7D32) // Dark green
+                                        ? const Color(0xFF2E7D32)
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(18),
                                   ),
                                   child: Text(
                                     "One Time",
                                     style: TextStyle(
-                                      color: controller.impactType.value == 'one_time' ? Colors.white : const Color(0xFF2E7D32),
+                                      color: controller.impactType.value == 'one_time'
+                                          ? Colors.white
+                                          : const Color(0xFF2E7D32),
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -87,7 +99,9 @@ class ReviewPayScreen extends StatelessWidget {
                                   child: Text(
                                     "Monthly",
                                     style: TextStyle(
-                                      color: controller.impactType.value == 'monthly' ? Colors.white : const Color(0xFF2E7D32),
+                                      color: controller.impactType.value == 'monthly'
+                                          ? Colors.white
+                                          : const Color(0xFF2E7D32),
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -100,18 +114,50 @@ class ReviewPayScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _buildCartItemList(controller),
+
+                    // Dynamic cart items
+                    if (cartItems.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: Text(
+                            "No items in cart. Go back and add items.",
+                            style: AppFonts.regularText.copyWith(color: AppTheme.textGrey400),
+                          ),
+                        ),
+                      )
+                    else
+                      Column(
+                        children: List.generate(cartItems.length, (i) {
+                          final item = cartItems[i];
+                          final qty = controller.itemQtyMap[item.id ?? ''] ?? 0;
+                          final price = item.price?.toInt() ?? 0;
+                          final subName = item.subcategoryId?.name ?? "";
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: i < cartItems.length - 1 ? 12 : 0),
+                            child: _buildCartItem(
+                              title: item.name ?? "",
+                              subtitle: subName,
+                              price: price,
+                              qty: qty,
+                              imageUrl: item.imageUrl,
+                            ),
+                          );
+                        }),
+                      ),
+
                     const SizedBox(height: 12),
                     _buildAddMoreItemsButton(),
                     const SizedBox(height: 24),
 
-                    // Event Details Section
-                    Text("Select Event Details", style: AppFonts.semiBoldText.copyWith(fontSize: 14, fontWeight: FontWeight.bold)),
+                    // Event Details
+                    Text("Select Event Details",
+                        style: AppFonts.semiBoldText.copyWith(fontSize: 14, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     _buildEventDropdown(controller, context),
                     const SizedBox(height: 8),
-                    
-                    // Add Details checkbox row
+
+                    // Add Details checkbox
                     Row(
                       children: [
                         SizedBox(
@@ -120,37 +166,36 @@ class ReviewPayScreen extends StatelessWidget {
                           child: Checkbox(
                             value: controller.addDetailsChecked.value,
                             onChanged: (val) {
-                              if (val != null) {
-                                controller.addDetailsChecked.value = val;
-                              }
+                              if (val != null) controller.addDetailsChecked.value = val;
                             },
                             activeColor: AppTheme.primaryDeepBlue,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          "Add Details",
-                          style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: Colors.black87),
-                        ),
+                        Text("Add Details",
+                            style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: Colors.black87)),
                       ],
                     ),
                     const SizedBox(height: 12),
 
-                    // Animated/conditional display of Event fields
+                    // Event name + date (conditional)
                     if (controller.addDetailsChecked.value) ...[
-                      Text("Event Name", style: AppFonts.semiBoldText.copyWith(fontSize: 14, fontWeight: FontWeight.bold)),
+                      Text("Event Name",
+                          style: AppFonts.semiBoldText.copyWith(fontSize: 14, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       _buildEventNameInput(controller),
                       const SizedBox(height: 16),
-                      Text("Event Date", style: AppFonts.semiBoldText.copyWith(fontSize: 14, fontWeight: FontWeight.bold)),
+                      Text("Event Date",
+                          style: AppFonts.semiBoldText.copyWith(fontSize: 14, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       _buildEventDatePicker(controller, context),
                       const SizedBox(height: 16),
                     ],
 
-                    // Currency Section
-                    Text("Currency", style: AppFonts.semiBoldText.copyWith(fontSize: 14, fontWeight: FontWeight.bold)),
+                    // Currency
+                    Text("Currency",
+                        style: AppFonts.semiBoldText.copyWith(fontSize: 14, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     _buildCurrencySelector(controller),
                     const SizedBox(height: 24),
@@ -158,58 +203,11 @@ class ReviewPayScreen extends StatelessWidget {
                 ),
               ),
             ),
-            _buildBottomBar(controller),
+            _buildBottomBar(controller, profileController, context),
           ],
         );
       }),
     );
-  }
-
-  Widget _buildCartItemList(DaanController controller) {
-    List<Widget> itemsList = [];
-
-    if (controller.rationKitQty.value > 0) {
-      itemsList.add(
-        _buildCartItem(
-          title: "Ration Kit For Needy Family - 30days",
-          subtitle: "Saints & Brahmins Seva",
-          price: controller.rationKitPrice,
-          qty: controller.rationKitQty.value,
-          impactType: controller.impactType.value,
-          imagePath: 'assets/images/campaign_image.png',
-        ),
-      );
-    }
-
-    if (controller.feedBrahminsQty.value > 0) {
-      if (itemsList.isNotEmpty) itemsList.add(const SizedBox(height: 12));
-      itemsList.add(
-        _buildCartItem(
-          title: "Feed Brahmins And Saints",
-          subtitle: "Saints & Brahmins Seva",
-          price: controller.feedBrahminsPrice,
-          qty: controller.feedBrahminsQty.value,
-          impactType: controller.impactType.value,
-          imagePath: 'assets/images/campaign_image.png',
-        ),
-      );
-    }
-
-    if (controller.dryRationsQty.value > 0) {
-      if (itemsList.isNotEmpty) itemsList.add(const SizedBox(height: 12));
-      itemsList.add(
-        _buildCartItem(
-          title: "Dry Rations Kit",
-          subtitle: "Dry Rations Seva",
-          price: controller.dryRationsPrice,
-          qty: controller.dryRationsQty.value,
-          impactType: controller.impactType.value,
-          imagePath: 'assets/images/campaign_image.png',
-        ),
-      );
-    }
-
-    return Column(children: itemsList);
   }
 
   Widget _buildCartItem({
@@ -217,8 +215,7 @@ class ReviewPayScreen extends StatelessWidget {
     required String subtitle,
     required int price,
     required int qty,
-    required String impactType,
-    required String imagePath,
+    String? imageUrl,
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -232,12 +229,11 @@ class ReviewPayScreen extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              imagePath,
-              width: 54,
-              height: 54,
-              fit: BoxFit.cover,
-            ),
+            child: imageUrl != null
+                ? Image.network(imageUrl,
+                    width: 54, height: 54, fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => Image.asset(AppAssets.campaignImage, width: 54, height: 54, fit: BoxFit.cover))
+                : Image.asset(AppAssets.campaignImage, width: 54, height: 54, fit: BoxFit.cover),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -251,21 +247,21 @@ class ReviewPayScreen extends StatelessWidget {
                   style: AppFonts.semiBoldText.copyWith(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: AppFonts.regularText.copyWith(fontSize: 10, color: AppTheme.textGrey500),
-                ),
+                Text(subtitle,
+                    style: AppFonts.regularText.copyWith(fontSize: 10, color: AppTheme.textGrey500)),
                 const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       "$qty X ₹ $price / Unit",
-                      style: AppFonts.regularText.copyWith(fontSize: 11, color: Colors.black87, fontWeight: FontWeight.bold),
+                      style: AppFonts.regularText
+                          .copyWith(fontSize: 11, color: Colors.black87, fontWeight: FontWeight.bold),
                     ),
                     Text(
                       "₹ ${qty * price}",
-                      style: AppFonts.semiBoldText.copyWith(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryDeepBlue),
+                      style: AppFonts.semiBoldText.copyWith(
+                          fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryDeepBlue),
                     ),
                   ],
                 ),
@@ -286,10 +282,9 @@ class ReviewPayScreen extends StatelessWidget {
           children: [
             Icon(Icons.add_circle_outline, size: 18, color: AppTheme.primaryDeepBlue),
             const SizedBox(width: 6),
-            Text(
-              "Add More Items",
-              style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: AppTheme.primaryDeepBlue, fontWeight: FontWeight.bold),
-            ),
+            Text("Add More Items",
+                style: AppFonts.semiBoldText
+                    .copyWith(fontSize: 13, color: AppTheme.primaryDeepBlue, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -298,7 +293,6 @@ class ReviewPayScreen extends StatelessWidget {
 
   Widget _buildEventDropdown(DaanController controller, BuildContext context) {
     final events = ["Birthday", "Anniversary", "Occasion", "In Memory", "Festival", "Shradh / Punya Tithi", "Others"];
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
@@ -317,9 +311,7 @@ class ReviewPayScreen extends StatelessWidget {
             );
           }).toList(),
           onChanged: (val) {
-            if (val != null) {
-              controller.selectedEvent.value = val;
-            }
+            if (val != null) controller.selectedEvent.value = val;
           },
         ),
       ),
@@ -394,23 +386,13 @@ class ReviewPayScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Text(controller.selectedCurrency.value, style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
           Row(
             children: [
-              Text(
-                controller.selectedCurrency.value,
-                style: AppFonts.semiBoldText.copyWith(fontSize: 14),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              // Show a flag icon of India
               const Text("🇮🇳", style: TextStyle(fontSize: 18)),
               const SizedBox(width: 8),
-              Text(
-                "India",
-                style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
-              ),
+              Text("India",
+                  style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
               const SizedBox(width: 4),
               const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey),
             ],
@@ -420,7 +402,8 @@ class ReviewPayScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomBar(DaanController controller) {
+  Widget _buildBottomBar(
+      DaanController controller, ProfileController profileController, BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -437,50 +420,83 @@ class ReviewPayScreen extends StatelessWidget {
         child: SizedBox(
           width: double.infinity,
           height: 48,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryDeepBlue,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
-            ),
-            onPressed: () {
-              // Set the total amount parameter and navigate to payment method screen
-              Get.toNamed(
-                MyRouters.paymentMethodScreen,
-                arguments: {'amount': controller.totalAmount.toString()},
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Donate now",
-                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            "Total",
-                            style: TextStyle(color: Colors.white70, fontSize: 9),
-                          ),
-                          Text(
-                            "₹ ${controller.totalAmount}",
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+          child: Obx(() {
+            final total = controller.itemsTotal;
+            final isLoading = controller.isSubmitting.value;
+
+            return ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryDeepBlue,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
               ),
-            ),
-          ),
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (total <= 0) {
+                        showSnackBar("Please add at least one item to donate.", false);
+                        return;
+                      }
+
+                      // Check wallet balance
+                      final walletBalance =
+                          profileController.profileData.value?.walletBalance ?? 0.0;
+                      if (total > walletBalance) {
+                        showSnackBar("Insufficient balance for donate", false);
+                        return;
+                      }
+
+                      final profile = profileController.profileData.value;
+                      final success = await controller.submitDaanDonation(
+                        context: context,
+                        donorName: profile?.name ?? "",
+                        donorPhone: profile?.phone ?? "",
+                        donorEmail: profile?.email ?? "",
+                      );
+
+                      if (success) {
+                        if (Get.isRegistered<HomeController>()) {
+                          Get.find<HomeController>().fetchHomeData();
+                        }
+                        Get.toNamed(MyRouters.paymentSuccessScreen);
+                      }
+                    },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    isLoading
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: LoadingAnimationWidget.threeRotatingDots(
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          )
+                        : const Text(
+                            "Donate now",
+                            style:
+                                TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text("Total", style: TextStyle(color: Colors.white70, fontSize: 9)),
+                        Text(
+                          "₹ $total",
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
         ),
       ),
     );

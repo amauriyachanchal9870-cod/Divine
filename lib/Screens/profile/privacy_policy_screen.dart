@@ -2,9 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Controller/profile_controller.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import '../../Utilities/app_theme.dart';
 
-class PrivacyPolicyScreen extends StatelessWidget {
+class PrivacyPolicyScreen extends StatefulWidget {
   const PrivacyPolicyScreen({super.key});
+
+  @override
+  State<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
+}
+
+class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
+  final ProfileController _profileController = Get.isRegistered<ProfileController>() ? Get.find<ProfileController>() : Get.put(ProfileController());
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _profileController.fetchContent(context, 'privacy-policy');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,39 +35,49 @@ class PrivacyPolicyScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 18),
           onPressed: () => Get.back(),
         ),
-        title: Text(AppString.privacyPolicy.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
+        title: Obx(() {
+          final title = _profileController.privacyTitle.value;
+          return Text(
+            title.isNotEmpty ? title : AppString.privacyPolicy.tr,
+            style: AppFonts.titleStyle.copyWith(fontSize: 18),
+          );
+        }),
         centerTitle: false,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSection("1. Your Privacy", "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."),
-              const SizedBox(height: 24),
-              _buildSection("2. Use of your personal data", "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."),
-              const SizedBox(height: 24),
-              _buildSection("3. Disclosure of your personal data", "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo."),
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+      body: Obx(() {
+        if (_profileController.isLoading.value && _profileController.privacyContent.value.isEmpty) {
+          return Center(
+            child: LoadingAnimationWidget.threeRotatingDots(
+              color: AppTheme.primaryDeepBlue,
+              size: 50,
+            ),
+          );
+        }
 
-  Widget _buildSection(String title, String content) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: AppFonts.semiBoldText.copyWith(fontSize: 16)),
-        const SizedBox(height: 12),
-        Text(
-          content,
-          style: AppFonts.regularText.copyWith(fontSize: 14, color: Colors.black87, height: 1.6),
-        ),
-      ],
+        final content = _profileController.privacyContent.value;
+        if (content.isEmpty) {
+          return Center(
+            child: Text(
+              "No content available",
+              style: AppFonts.regularText.copyWith(color: Colors.grey),
+            ),
+          );
+        }
+
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Text(
+              content,
+              style: AppFonts.regularText.copyWith(
+                fontSize: 14,
+                color: Colors.black87,
+                height: 1.6,
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 }

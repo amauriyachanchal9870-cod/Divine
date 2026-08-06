@@ -1,15 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../Controller/daan_controller.dart';
+import '../../Model/dan_categories_model.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class ChooseDaanTypeScreen extends StatelessWidget {
   const ChooseDaanTypeScreen({super.key});
 
+  String getCategoryFallbackAsset(String? categoryId) {
+    switch (categoryId) {
+      case 'CAT-FOOD':
+        return AppAssets.danFood;
+      case 'CAT-CLOTHES':
+        return AppAssets.danClothes;
+      case 'CAT-GAU':
+        return AppAssets.danGau;
+      case 'CAT-NGO':
+        return AppAssets.danNgo;
+      case 'CAT-BOOKS':
+        return AppAssets.danBooks;
+      case 'CAT-TEMPLE':
+        return AppAssets.danTemple;
+      default:
+        return AppAssets.danFood;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final DaanController controller = Get.put(DaanController());
+
+    // Reset search query when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.searchQuery.value = '';
+    });
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -25,47 +55,69 @@ class ChooseDaanTypeScreen extends StatelessWidget {
         ),
         centerTitle: false,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          children: [
-            _buildSearchBar(),
-            const SizedBox(height: 12),
-            _buildSlidingBanner(),
-            const SizedBox(height: 20),
-            _buildDaanGrid(),
-            const SizedBox(height: 24),
-            _buildSlidingBanner(),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
+      body: Obx(() {
+        if (controller.isLoading.value && controller.categories.isEmpty) {
+          return Center(
+            child: LoadingAnimationWidget.threeRotatingDots(
+              color: AppTheme.primaryDeepBlue,
+              size: 50,
+            ),
+          );
+        }
+
+        final topBanner = controller.topBanners.isNotEmpty ? controller.topBanners.first : null;
+        final bottomBanner = controller.bottomBanners.isNotEmpty ? controller.bottomBanners.first : null;
+
+        return RefreshIndicator(
+          onRefresh: () => controller.fetchDaanCategories(),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              children: [
+                _buildSearchBar(controller),
+                const SizedBox(height: 12),
+                _buildSlidingBanner(topBanner, AppString.everyContributionCreatesImpact.tr),
+                const SizedBox(height: 20),
+                _buildDaanGrid(controller),
+                const SizedBox(height: 24),
+                _buildSlidingBanner(bottomBanner, "Every Act of Giving Creates a Ripple of Hope"),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        );
+      }),
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(DaanController controller) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: AppTheme.fieldBorderColor),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.search, color: Colors.grey, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            AppString.search.tr,
-            style: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 14),
-          ),
-        ],
+      child: TextField(
+        onChanged: (val) {
+          controller.searchQuery.value = val;
+        },
+        decoration: InputDecoration(
+          hintText: AppString.search.tr,
+          hintStyle: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 14),
+          prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        ),
       ),
     );
   }
 
-  Widget _buildSlidingBanner() {
+  Widget _buildSlidingBanner(DanBannerItem? banner, String defaultTitle) {
+    final String title = banner?.title ?? defaultTitle;
+    final String? imageUrl = banner?.imageUrl;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
@@ -80,7 +132,7 @@ class ChooseDaanTypeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  AppString.everyContributionCreatesImpact.tr,
+                  title,
                   style: AppFonts.titleStyle.copyWith(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 10),
@@ -137,57 +189,47 @@ class ChooseDaanTypeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Image.asset(
-            'assets/images/donateAndFund.png',
-            width: 70,
-            height: 70,
-            fit: BoxFit.contain,
-            errorBuilder: (c, e, s) => const SizedBox(width: 70, height: 70),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: imageUrl != null
+                ? Image.network(
+                    imageUrl,
+                    width: 70,
+                    height: 70,
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => Image.asset(
+                      AppAssets.donateAndFund,
+                      width: 70,
+                      height: 70,
+                      fit: BoxFit.contain,
+                    ),
+                  )
+                : Image.asset(
+                    AppAssets.donateAndFund,
+                    width: 70,
+                    height: 70,
+                    fit: BoxFit.contain,
+                  ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDaanGrid() {
-    final items = [
-      {
-        'title': AppString.foodLabel.tr,
-        'subtitle': 'Food for the needy',
-        'image': 'assets/icons/danFoodIcon.png',
-        'route': MyRouters.donateFoodScreen,
-      },
-      {
-        'title': AppString.clothesLabel.tr,
-        'subtitle': 'Clothes donation',
-        'image': 'assets/icons/danClothesIcon.png',
-        'route': MyRouters.donateFoodScreen,
-      },
-      {
-        'title': AppString.gauDaanLabel.tr,
-        'subtitle': 'Gau seva',
-        'image': 'assets/icons/danGauIcon.png',
-        'route': MyRouters.donateFoodScreen,
-      },
-      {
-        'title': AppString.ngoWelfareLabel.tr,
-        'subtitle': 'Support NGOs',
-        'image': 'assets/icons/danNgoIcon.png',
-        'route': MyRouters.donateFoodScreen,
-      },
-      {
-        'title': AppString.booksLabel.tr,
-        'subtitle': 'Foundation support',
-        'image': 'assets/icons/danBooksIcon.png',
-        'route': MyRouters.donateFoodScreen,
-      },
-      {
-        'title': AppString.templeLabel.tr,
-        'subtitle': 'Temple donation',
-        'image': 'assets/icons/danTempleIcon.png',
-        'route': MyRouters.donateFoodScreen,
-      },
-    ];
+  Widget _buildDaanGrid(DaanController controller) {
+    final items = controller.filteredCategories;
+
+    if (items.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40.0),
+          child: Text(
+            "No categories found.",
+            style: AppFonts.regularText.copyWith(color: AppTheme.textGrey400),
+          ),
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -203,8 +245,10 @@ class ChooseDaanTypeScreen extends StatelessWidget {
         ),
         itemBuilder: (context, index) {
           final item = items[index];
+          final String fallbackAsset = getCategoryFallbackAsset(item.categoryId);
+
           return GestureDetector(
-            onTap: () => Get.toNamed(item['route'] as String),
+            onTap: () => Get.toNamed(MyRouters.donateFoodScreen, arguments: item),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -224,11 +268,22 @@ class ChooseDaanTypeScreen extends StatelessWidget {
                   Expanded(
                     child: ClipRRect(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                      child: Image.asset(
-                        item['image'] as String,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+                      child: item.imageUrl != null
+                          ? Image.network(
+                              item.imageUrl!,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) => Image.asset(
+                                fallbackAsset,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Image.asset(
+                              fallbackAsset,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
                     ),
                   ),
                   Padding(
@@ -237,13 +292,15 @@ class ChooseDaanTypeScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          item['title'] as String,
+                          item.name ?? "",
                           style: AppFonts.semiBoldText.copyWith(fontSize: 13, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          item['subtitle'] as String,
+                          item.description ?? "",
                           style: AppFonts.regularText.copyWith(fontSize: 10, color: AppTheme.textGrey500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 8),
                         SizedBox(
@@ -256,7 +313,7 @@ class ChooseDaanTypeScreen extends StatelessWidget {
                               padding: EdgeInsets.zero,
                               elevation: 0,
                             ),
-                            onPressed: () => Get.toNamed(item['route'] as String),
+                            onPressed: () => Get.toNamed(MyRouters.donateFoodScreen, arguments: item),
                             child: Text(
                               AppString.donateNow.tr,
                               style: TextStyle(color: AppTheme.bannerButtonGreen, fontSize: 11, fontWeight: FontWeight.bold),

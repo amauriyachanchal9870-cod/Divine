@@ -53,6 +53,8 @@ import '../Screens/profile/about_us_screen.dart';
 import '../Screens/profile/edit_profile_screen.dart';
 import '../Screens/profile/coupons_screen.dart';
 import '../Screens/profile/my_reviews_screen.dart';
+import '../Screens/profile/my_tickets_screen.dart';
+import '../Screens/profile/ngo_profile_detail_screen.dart';
 import '../Controller/home_controller.dart';
 import '../Controller/daan_controller.dart';
 
@@ -108,6 +110,8 @@ class MyRouters {
   static var editProfileScreen = "/editProfileScreen";
   static var couponsScreen = "/couponsScreen";
   static var myReviewsScreen = "/myReviewsScreen";
+  static var myTicketsScreen = "/myTicketsScreen";
+  static var ngoProfileDetailScreen = "/ngoProfileDetailScreen";
 
   static var route = [
     GetPage(name: '/', page: () => const SplashScreen()),
@@ -124,7 +128,7 @@ class MyRouters {
     GetPage(name: "/successScreen", page: () => const SuccessScreen()),
     GetPage(
       name: "/mainNav",
-      page: () => const MainNavigationScreen(),
+      page: () => MainNavigationScreen(),
       binding: BindingsBuilder(() {
         Get.lazyPut<HomeController>(() => HomeController());
         Get.lazyPut<DaanController>(() => DaanController());
@@ -198,5 +202,7 @@ class MyRouters {
     GetPage(name: "/editProfileScreen", page: () => const EditProfileScreen()),
     GetPage(name: "/couponsScreen", page: () => const CouponsScreen()),
     GetPage(name: "/myReviewsScreen", page: () => const MyReviewsScreen()),
+    GetPage(name: "/myTicketsScreen", page: () => const MyTicketsScreen()),
+    GetPage(name: "/ngoProfileDetailScreen", page: () => const NgoProfileDetailScreen()),
   ];
 }

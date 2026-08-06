@@ -47,5 +47,40 @@ class HomeController extends GetxController {
   List<HomeCampaign> get campaigns => homeData.value?.campaigns ?? [];
   List<HomeNgo> get ngos => homeData.value?.ngos ?? [];
   List<HomeDonationHistory> get donationHistory => homeData.value?.donationHistory ?? [];
+  int get totalDonateAmount => homeData.value?.totalDonateAmount ?? 0;
   HomeUser? get user => homeData.value?.user;
+
+  var selectedDonationFilter = 'All'.obs;
+
+  List<HomeDonationHistory> get filteredDonationHistory {
+    final list = donationHistory;
+    final filter = selectedDonationFilter.value;
+    if (filter == 'All') return list;
+
+    if (filter == 'Payment Logs') {
+      return list.where((t) {
+        final itemLower = (t.item ?? '').toLowerCase();
+        final statusLower = (t.status ?? '').toLowerCase();
+        return itemLower.contains('top') ||
+               itemLower.contains('wallet') ||
+               itemLower.contains('pay') ||
+               itemLower.contains('log') ||
+               itemLower.contains('donation') ||
+               statusLower.contains('completed') ||
+               statusLower.contains('success');
+      }).toList();
+    } else if (filter == 'Cashback') {
+      return list.where((t) {
+        final itemLower = (t.item ?? '').toLowerCase();
+        return itemLower.contains('cashback') || itemLower.contains('reward');
+      }).toList();
+    } else if (filter == 'Expiry Cashback') {
+      return list.where((t) {
+        final itemLower = (t.item ?? '').toLowerCase();
+        return itemLower.contains('expiry') || itemLower.contains('bonus');
+      }).toList();
+    }
+
+    return list;
+  }
 }

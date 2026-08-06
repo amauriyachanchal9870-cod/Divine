@@ -25,6 +25,16 @@ class _NgoBankDetailsScreenState extends State<NgoBankDetailsScreen> {
   final TextEditingController ifscCodeController = TextEditingController();
 
   @override
+  void dispose() {
+    accountHolderController.dispose();
+    bankNameController.dispose();
+    branchAddressController.dispose();
+    accountNumberController.dispose();
+    ifscCodeController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -49,7 +59,7 @@ class _NgoBankDetailsScreenState extends State<NgoBankDetailsScreen> {
                   useBorder: true,
                   borderColor: AppTheme.fieldBorderColor,
                   borderRadius: 10,
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  validator: (val) => val == null || val.isEmpty ? 'Please enter account holder name' : null,
                 ),
                 const SizedBox(height: 24),
 
@@ -62,7 +72,7 @@ class _NgoBankDetailsScreenState extends State<NgoBankDetailsScreen> {
                   useBorder: true,
                   borderColor: AppTheme.fieldBorderColor,
                   borderRadius: 10,
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  validator: (val) => val == null || val.isEmpty ? 'Please enter bank name' : null,
                 ),
                 const SizedBox(height: 24),
 
@@ -75,7 +85,7 @@ class _NgoBankDetailsScreenState extends State<NgoBankDetailsScreen> {
                   useBorder: true,
                   borderColor: AppTheme.fieldBorderColor,
                   borderRadius: 10,
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  validator: (val) => val == null || val.isEmpty ? 'Please enter branch address' : null,
                 ),
                 const SizedBox(height: 24),
 
@@ -89,7 +99,7 @@ class _NgoBankDetailsScreenState extends State<NgoBankDetailsScreen> {
                   useBorder: true,
                   borderColor: AppTheme.fieldBorderColor,
                   borderRadius: 10,
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  validator: (val) => val == null || val.isEmpty ? 'Please enter account number' : null,
                 ),
                 const SizedBox(height: 24),
 
@@ -102,7 +112,7 @@ class _NgoBankDetailsScreenState extends State<NgoBankDetailsScreen> {
                   useBorder: true,
                   borderColor: AppTheme.fieldBorderColor,
                   borderRadius: 10,
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  validator: (val) => val == null || val.isEmpty ? 'Please enter IFSC code' : null,
                 ),
                 const SizedBox(height: 40),
 

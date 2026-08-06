@@ -5,13 +5,84 @@ import '../../Model/home_model.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Utilities/helper.dart';
 
 class DonationHistoryScreen extends StatelessWidget {
   const DonationHistoryScreen({super.key});
 
+  void _showFilterBottomSheet(BuildContext context, HomeController controller) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final options = ['All', 'Payment Logs', 'Cashback', 'Expiry Cashback'];
+        return Obx(() {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Filter Donations",
+                      style: AppFonts.titleStyle.copyWith(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Get.back(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...options.map((option) {
+                  bool isSelected = controller.selectedDonationFilter.value == option;
+                  return InkWell(
+                    onTap: () {
+                      controller.selectedDonationFilter.value = option;
+                      Get.back();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            option,
+                            style: AppFonts.mediumText.copyWith(
+                              fontSize: 15,
+                              color: isSelected ? AppTheme.primaryDeepBlue : Colors.black87,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          if (isSelected)
+                            Icon(Icons.check, color: AppTheme.primaryDeepBlue, size: 20),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 10),
+              ],
+            ),
+          );
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final HomeController homeController = Get.find<HomeController>();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      homeController.selectedDonationFilter.value = 'All';
+    });
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -24,12 +95,36 @@ class DonationHistoryScreen extends StatelessWidget {
         ),
         title: Text(AppString.donationHistory.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
         centerTitle: false,
+        actions: [
+          GestureDetector(
+            onTap: () => _showFilterBottomSheet(context, homeController),
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.fieldBorderColor),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.tune, size: 14, color: AppTheme.textGrey500),
+                  const SizedBox(width: 4),
+                  Text(
+                    "Filter",
+                    style: AppFonts.mediumText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       body: Obx(() {
-        final history = homeController.donationHistory;
-        final totalDonations = history.fold<int>(0, (sum, item) => sum + (item.amount ?? 0));
+        final history = homeController.filteredDonationHistory;
+        final totalDonations = homeController.donationHistory.fold<int>(0, (sum, item) => sum + (item.amount ?? 0));
         // Count unique campaign items supported
-        final campaignsSupported = history.map((e) => e.item).where((item) => item != null && item.isNotEmpty).toSet().length;
+        final campaignsSupported = homeController.donationHistory.map((e) => e.item).where((item) => item != null && item.isNotEmpty).toSet().length;
 
         if (history.isEmpty) {
           return Center(
@@ -90,7 +185,7 @@ class DonationHistoryScreen extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text("₹$totalAmount", style: AppFonts.titleStyle.copyWith(fontSize: 20, color: AppTheme.primaryDeepBlue)),
+              Text("₹${formatPrice(totalAmount)}", style: AppFonts.titleStyle.copyWith(fontSize: 20, color: AppTheme.primaryDeepBlue)),
               const SizedBox(height: 4),
               Text(AppString.totalDonations.tr, style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
             ],
@@ -144,7 +239,7 @@ class DonationHistoryScreen extends StatelessWidget {
               Text(displayDate, style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey400)),
               const SizedBox(height: 4),
               Text(
-                "₹${txn.amount}",
+                "₹${formatPrice(txn.amount ?? 0)}",
                 style: AppFonts.semiBoldText.copyWith(fontSize: 14, color: AppTheme.progressGreen),
               ),
             ],

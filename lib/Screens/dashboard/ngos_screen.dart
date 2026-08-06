@@ -1,12 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../Widget/shimmer_widget.dart';
 import '../../Controller/home_controller.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/app_assets.dart';
 import '../../Routes/my_routes.dart';
+import '../../Controller/follows_controller.dart';
 
 class NgosScreen extends StatefulWidget {
   const NgosScreen({super.key});
@@ -17,7 +19,7 @@ class NgosScreen extends StatefulWidget {
 
 class _NgosScreenState extends State<NgosScreen> {
   final HomeController homeController = Get.find<HomeController>();
-  final RxSet<String> followedNgos = <String>{}.obs;
+  final FollowsController followsController = Get.put(FollowsController());
   String searchQuery = "";
 
   @override
@@ -99,13 +101,14 @@ class _NgosScreenState extends State<NgosScreen> {
                 itemCount: filteredNgos.length,
                 itemBuilder: (context, index) {
                   final ngo = filteredNgos[index];
-                  final isFollowed = followedNgos.contains(ngo.id ?? ngo.name);
+                  final isFollowed = followsController.isNgoFollowed(ngo.id ?? '');
                   
                   return GestureDetector(
                     onTap: () {
                       Get.toNamed(MyRouters.ngoDetailsScreen, arguments: {
+                        'id': ngo.id,
                         'name': ngo.name,
-                        'isFollowed': isFollowed,
+                        'isFollowing': isFollowed,
                       });
                     },
                     child: Container(
@@ -138,6 +141,7 @@ class _NgosScreenState extends State<NgosScreen> {
                                           width: 72,
                                           height: 72,
                                           fit: BoxFit.cover,
+                                          placeholder: (c, u) => const ShimmerWidget(width: 72, height: 72, borderRadius: BorderRadius.all(Radius.circular(36))),
                                           errorWidget: (c, u, e) => Image.asset(
                                             AppAssets.ngoLogo,
                                             fit: BoxFit.cover,
@@ -195,41 +199,32 @@ class _NgosScreenState extends State<NgosScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const Spacer(),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 32,
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: isFollowed ? AppTheme.textGrey400 : AppTheme.primaryDeepBlue),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                padding: EdgeInsets.zero,
-                                backgroundColor: isFollowed ? AppTheme.greyBg300.withValues(alpha: 0.2) : Colors.transparent,
+                          Obx(() {
+                            final isFollowedLocal = followsController.isNgoFollowed(ngo.id ?? '');
+                            return SizedBox(
+                              width: double.infinity,
+                              height: 32,
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: isFollowedLocal ? AppTheme.textGrey400 : AppTheme.primaryDeepBlue),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  padding: EdgeInsets.zero,
+                                  backgroundColor: isFollowedLocal ? AppTheme.greyBg300.withValues(alpha: 0.2) : Colors.transparent,
+                                ),
+                                onPressed: () {
+                                  followsController.toggleFollowNgoApi(ngo.id ?? '');
+                                },
+                                child: Text(
+                                  isFollowedLocal ? AppString.unfollow.tr : AppString.follow.tr, 
+                                  style: TextStyle(
+                                    color: isFollowedLocal ? AppTheme.textGrey500 : AppTheme.primaryDeepBlue, 
+                                    fontSize: 12, 
+                                    fontWeight: FontWeight.bold
+                                  )
+                                ),
                               ),
-                              onPressed: () {
-                                final ngoKey = ngo.id ?? ngo.name ?? '';
-                                if (isFollowed) {
-                                  followedNgos.remove(ngoKey);
-                                } else {
-                                  followedNgos.add(ngoKey);
-                                }
-                                Get.snackbar(
-                                  isFollowed ? AppString.unfollow.tr : AppString.follow.tr, 
-                                  isFollowed 
-                                      ? "${AppString.youUnfollowed.tr} ${ngo.name}" 
-                                      : "${AppString.youAreNowFollowing.tr} ${ngo.name}",
-                                  snackPosition: SnackPosition.BOTTOM,
-                                );
-                              },
-                              child: Text(
-                                isFollowed ? AppString.following.tr : AppString.follow.tr, 
-                                style: TextStyle(
-                                  color: isFollowed ? AppTheme.textGrey500 : AppTheme.primaryDeepBlue, 
-                                  fontSize: 12, 
-                                  fontWeight: FontWeight.bold
-                                )
-                              ),
-                            ),
-                          ),
+                            );
+                          }),
                         ],
                       ),
                     ),

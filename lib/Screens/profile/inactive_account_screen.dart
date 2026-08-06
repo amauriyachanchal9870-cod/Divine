@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Controller/profile_controller.dart';
 
 class InactiveAccountScreen extends StatefulWidget {
   const InactiveAccountScreen({super.key});
@@ -93,17 +94,17 @@ class _InactiveAccountScreenState extends State<InactiveAccountScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
-              Text(AppString.areYouSureDeactivate.tr, style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
-              const SizedBox(height: 12),
-              _buildRadioOption("Yes, deactivate my account", "yes"),
-              _buildRadioOption("Cancel", "no"),
-              const SizedBox(height: 16),
+              const SizedBox(height: 26),
+              // Text(AppString.areYouSureDeactivate.tr, style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
+              // const SizedBox(height: 12),
+              // _buildRadioOption("Yes, deactivate my account", "yes"),
+              // _buildRadioOption("Cancel", "no"),
+              // const SizedBox(height: 16),
               Text(
                 AppString.reactivateNote.tr,
                 style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500, height: 1.5),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 80),
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -175,13 +176,14 @@ class _InactiveAccountScreenState extends State<InactiveAccountScreen> {
   }
 
   void _showConfirmDialog(BuildContext context) {
+    final ProfileController profileController = Get.find<ProfileController>();
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           contentPadding: const EdgeInsets.all(24),
-          title: Text("Are you sure you want to delete your account?", style: AppFonts.titleStyle.copyWith(fontSize: 16), textAlign: TextAlign.center),
+          title: Text("Are you sure you want to deactivate your account?", style: AppFonts.titleStyle.copyWith(fontSize: 16), textAlign: TextAlign.center),
           actions: [
             Row(
               children: [
@@ -205,8 +207,14 @@ class _InactiveAccountScreenState extends State<InactiveAccountScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
                     ),
-                    onPressed: () => Get.back(), 
-                    child: Text(AppString.delete.tr, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    onPressed: () async {
+                      Get.back();
+                      await profileController.deactivateAccount(
+                        context: context,
+                        deletePermanently: deleteAllChecked,
+                      );
+                    }, 
+                    child: Text(AppString.deactivate.tr, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],

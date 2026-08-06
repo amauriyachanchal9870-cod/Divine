@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../Utilities/app_theme.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
 
@@ -29,7 +30,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Image.asset(
-                    'assets/icons/thankYouIcon.png',
+                    AppAssets.thankYou,
                     width: 150,
                     height: 150,
                   ),

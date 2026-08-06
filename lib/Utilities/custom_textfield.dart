@@ -134,6 +134,7 @@ class _CommonTextFieldState extends State<CommonTextField> {
           fontSize: 14,
           fontWeight: FontWeight.w400,
         ),
+        counterText: "",
 
         prefixText: widget.prefixText, // ✅ Now applied
         prefixStyle: widget.prefixStyle ?? GoogleFonts.poppins(

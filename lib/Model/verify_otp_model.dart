@@ -3,6 +3,7 @@ class VerifyOtpModel {
   String? message;
   String? token;
   bool? isProfileComplete;
+  bool? isVerified;
   UserData? data;
 
   VerifyOtpModel({
@@ -10,6 +11,7 @@ class VerifyOtpModel {
     this.message,
     this.token,
     this.isProfileComplete,
+    this.isVerified,
     this.data,
   });
 
@@ -18,6 +20,7 @@ class VerifyOtpModel {
     message = json['message'];
     token = json['token'];
     isProfileComplete = json['isProfileComplete'];
+    isVerified = json['verified'];
     data = json['data'] != null ? UserData.fromJson(json['data']) : null;
   }
 
@@ -27,6 +30,7 @@ class VerifyOtpModel {
     data['message'] = message;
     data['token'] = token;
     data['isProfileComplete'] = isProfileComplete;
+    data['verified'] = isVerified;
     if (this.data != null) {
       data['data'] = this.data!.toJson();
     }
@@ -42,6 +46,7 @@ class UserData {
   String? gender;
   String? profilePhoto;
   String? role;
+  bool? isVerified;
 
   UserData({
     this.id,
@@ -51,6 +56,7 @@ class UserData {
     this.gender,
     this.profilePhoto,
     this.role,
+    this.isVerified,
   });
 
   UserData.fromJson(Map<String, dynamic> json) {
@@ -61,6 +67,7 @@ class UserData {
     gender = json['gender'];
     profilePhoto = json['profilePhoto'];
     role = json['role'];
+    isVerified = json['verified'];
   }
 
   Map<String, dynamic> toJson() {
@@ -72,6 +79,7 @@ class UserData {
     data['gender'] = gender;
     data['profilePhoto'] = profilePhoto;
     data['role'] = role;
+    data['verified'] = isVerified;
     return data;
   }
 }

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../Widget/shimmer_widget.dart';
+import '../../Model/campaign_details_model.dart';
+import '../../Model/home_model.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
+import '../../Utilities/helper.dart';
 
 class DonateAmountScreen extends StatefulWidget {
   const DonateAmountScreen({super.key});
@@ -66,6 +72,36 @@ class _DonateAmountScreenState extends State<DonateAmountScreen> {
   }
 
   Widget _buildCampaignSnippet() {
+    final args = Get.arguments;
+    
+    String? imageUrl;
+    String? title;
+    String? raised;
+    String? goal;
+    
+    if (args is CampaignDetailsData) {
+      imageUrl = args.imageUrl;
+      title = args.title;
+      raised = args.formattedRaised;
+      goal = args.formattedGoal;
+    } else if (args is HomeCampaign) {
+      imageUrl = args.imageUrl;
+      title = args.title;
+      raised = args.formattedRaised;
+      goal = args.formattedGoal;
+    } else if (args is Map) {
+      imageUrl = args['logoUrl'];
+      title = "Donation to ${args['name']}";
+      raised = "₹0";
+      goal = "Any";
+    }
+    
+    // Fallback if no campaign passed in arguments
+    imageUrl ??= '';
+    title ??= 'Rural education Initiative';
+    raised ??= '₹54K';
+    goal ??= '₹75K';
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -77,19 +113,28 @@ class _DonateAmountScreenState extends State<DonateAmountScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              'assets/images/campaign_image.png',
-              width: 80,
-              height: 60,
-              fit: BoxFit.cover,
-            ),
+            child: imageUrl.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    width: 80,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    placeholder: (ctx, url) => const ShimmerWidget(height: 60, width: 80),
+                    errorWidget: (ctx, url, err) => Image.asset(AppAssets.campaignImage, width: 80, height: 60, fit: BoxFit.cover),
+                  )
+                : Image.asset(
+                    AppAssets.campaignImage,
+                    width: 80,
+                    height: 60,
+                    fit: BoxFit.cover,
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Rural education Initiative", style: AppFonts.semiBoldText.copyWith(fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(title, style: AppFonts.semiBoldText.copyWith(fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -99,10 +144,10 @@ class _DonateAmountScreenState extends State<DonateAmountScreen> {
                         color: AppTheme.progressGreen.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text("₹ 54,000 raised", style: AppFonts.semiBoldText.copyWith(fontSize: 10, color: AppTheme.progressGreen)),
+                      child: Text("$raised raised", style: AppFonts.semiBoldText.copyWith(fontSize: 10, color: AppTheme.progressGreen)),
                     ),
                     const Spacer(),
-                    Text("of 75k", style: AppFonts.regularText.copyWith(fontSize: 10, color: AppTheme.textGrey500)),
+                    Text("of $goal", style: AppFonts.regularText.copyWith(fontSize: 10, color: AppTheme.textGrey500)),
                   ],
                 ),
               ],
@@ -180,6 +225,18 @@ class _DonateAmountScreenState extends State<DonateAmountScreen> {
   }
 
   Widget _buildBottomBar() {
+    final args = Get.arguments;
+    String? campaignId;
+    bool isNgo = false;
+    if (args is CampaignDetailsData) {
+      campaignId = args.sId;
+    } else if (args is HomeCampaign) {
+      campaignId = args.sId;
+    } else if (args is Map) {
+      campaignId = args['id'];
+      isNgo = args['isNgo'] ?? false;
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -203,11 +260,27 @@ class _DonateAmountScreenState extends State<DonateAmountScreen> {
               elevation: 0,
             ),
             onPressed: () {
-              if (_currentAmount > 0) {
-                Get.toNamed(MyRouters.paymentMethodScreen);
-              } else {
-                Get.snackbar("Invalid Amount", "Please select or enter a valid amount.");
+              // if (_currentAmount < 50) {
+              //   showSnackBar("Amount should be more than 50rs", false);
+              //   return;
+              // }
+              if (_currentAmount <= 0) {
+                showSnackBar("Please enter a valid donation amount", false);
+                return;
               }
+              if (_currentAmount >= 10000000) {
+                showSnackBar("Amount should be less than 10000000rs", false);
+                return;
+              }
+
+              Get.toNamed(
+                MyRouters.paymentMethodScreen,
+                arguments: {
+                  'amount': _currentAmount.toString(),
+                  'campaignId': campaignId ?? '',
+                  'isNgo': isNgo,
+                },
+              );
             },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

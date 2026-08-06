@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../Model/notification_model.dart';
 import '../Repo/common_repo.dart';
 import '../Utilities/api_constant.dart';
+import '../Utilities/app_string.dart';
 
 class NotificationController extends GetxController {
   var isLoading = false.obs;
@@ -33,15 +34,38 @@ class NotificationController extends GetxController {
         if (model.status == true && model.data != null) {
           notifications.assignAll(model.data!);
         } else {
-          errorMessage.value = 'Failed to load notifications.';
+          errorMessage.value = AppString.failedToLoadNotifications.tr;
         }
       } else {
-        errorMessage.value = 'No response from server.';
+        errorMessage.value = AppString.noResponseFromServer.tr;
       }
     } catch (e) {
-      errorMessage.value = 'Error: ${e.toString()}';
+      errorMessage.value = AppString.errorPrefix.trParams({'error': e.toString()});
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> markNotificationsAsRead() async {
+    try {
+      final url = ApiUrls.readNotificationsUrl;
+      final response = await Repositories().postApi(
+        url: url,
+        showResponse: true,
+      );
+
+      if (response != null) {
+        final jsonResponse = jsonDecode(response);
+        if (jsonResponse['status'] == true) {
+          for (var notification in notifications) {
+            notification.isRead = true;
+          }
+          notifications.refresh();
+        }
+      }
+    } catch (e) {
+      // Quietly log and ignore to prevent disrupting user experience
+      print("Error marking notifications as read: $e");
     }
   }
 }

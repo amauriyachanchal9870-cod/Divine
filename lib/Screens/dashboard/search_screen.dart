@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../Widget/shimmer_widget.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Controller/search_controller.dart';
 import '../../Model/home_model.dart';
 import '../../Utilities/app_theme.dart';
@@ -197,7 +199,7 @@ class _SearchScreenState extends State<SearchScreen> {
         if (controller.searchQuery.value.isNotEmpty) {
           controller.saveRecentSearch(controller.searchQuery.value);
         }
-        Get.toNamed(MyRouters.campaignDetailsScreen);
+        Get.toNamed(MyRouters.campaignDetailsScreen, arguments: c.sId);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -216,20 +218,16 @@ class _SearchScreenState extends State<SearchScreen> {
                       height: 140,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      placeholder: (ctx, url) => Container(
-                        height: 140,
-                        color: Colors.grey.shade200,
-                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                      ),
+                      placeholder: (ctx, url) => const ShimmerWidget(height: 140, width: double.infinity),
                       errorWidget: (ctx, url, err) => Image.asset(
-                        'assets/images/campaign_image.png',
+                        AppAssets.campaignImage,
                         height: 140,
                         width: double.infinity,
                         fit: BoxFit.cover,
                       ),
                     )
                   : Image.asset(
-                      'assets/images/campaign_image.png',
+                      AppAssets.campaignImage,
                       height: 140,
                       width: double.infinity,
                       fit: BoxFit.cover,
@@ -258,11 +256,11 @@ class _SearchScreenState extends State<SearchScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '₹ ${c.raised} raised',
+                        '${c.formattedRaised} raised',
                         style: AppFonts.semiBoldText.copyWith(fontSize: 12, color: AppTheme.progressGreen),
                       ),
                       Text(
-                        'of ${c.goal}',
+                        'of ${c.formattedGoal}',
                         style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
                       ),
                     ],
@@ -307,7 +305,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         if (controller.searchQuery.value.isNotEmpty) {
                           controller.saveRecentSearch(controller.searchQuery.value);
                         }
-                        Get.toNamed(MyRouters.donateAmountScreen);
+                        Get.toNamed(MyRouters.donateAmountScreen, arguments: c);
                       },
                       child: Text(
                         AppString.donateNow.tr,

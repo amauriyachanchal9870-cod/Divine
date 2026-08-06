@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../Controller/wallet_controller.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import '../../Utilities/helper.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -13,7 +16,106 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  bool isOverview = true;
+  final WalletController controller = Get.put(WalletController());
+
+  String formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return 'Oct 24, 2025 • 14:30';
+    try {
+      DateTime dt = DateTime.parse(dateStr).toLocal();
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      String month = months[dt.month - 1];
+      String hour = dt.hour.toString().padLeft(2, '0');
+      String minute = dt.minute.toString().padLeft(2, '0');
+      return "$month ${dt.day}, ${dt.year} • $hour:$minute";
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  String formatWalletAmount(double val) {
+    if (val >= 1000) {
+      return formatPrice(val);
+    }
+    return val.toStringAsFixed(2);
+  }
+
+  String formatCreditDebitAmount(double val) {
+    return formatPrice(val);
+  }
+
+  bool _isPositiveTransaction(t) {
+    return (t.item?.toLowerCase().contains('cashback') ?? false) || 
+           (t.item?.toLowerCase().contains('top') ?? false) || 
+           (t.item?.toLowerCase().contains('wallet') ?? false) ||
+           (t.type?.toLowerCase() == 'credit') ||
+           (t.type?.toLowerCase() == 'topup');
+  }
+
+  void _showFilterBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final options = ['All', 'Payment Logs', 'Cashback', 'Expiry Cashback'];
+        return Obx(() {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Filter Transactions",
+                      style: AppFonts.titleStyle.copyWith(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Get.back(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...options.map((option) {
+                  bool isSelected = controller.selectedFilter.value == option;
+                  return InkWell(
+                    onTap: () {
+                      controller.selectedFilter.value = option;
+                      Get.back();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            option,
+                            style: AppFonts.mediumText.copyWith(
+                              fontSize: 15,
+                              color: isSelected ? AppTheme.primaryDeepBlue : Colors.black87,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          if (isSelected)
+                            Icon(Icons.check, color: AppTheme.primaryDeepBlue, size: 20),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 10),
+              ],
+            ),
+          );
+        });
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,45 +130,88 @@ class _WalletScreenState extends State<WalletScreen> {
         ),
         centerTitle: false,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 10),
-              _buildBalanceCard(),
-              const SizedBox(height: 16),
-              _buildCashbackCard(),
-              const SizedBox(height: 24),
-              Text(
-                AppString.quickActions.tr,
-                style: AppFonts.semiBoldText.copyWith(fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: _buildQuickActionButton(Icons.add, AppString.addMoneyAction.tr, () {
-                    Get.toNamed(MyRouters.addMoneyScreen);
-                  })),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildQuickActionButton(Icons.history, AppString.transactions.tr, () {
-                    Get.toNamed(MyRouters.transactionsScreen);
-                  })),
-                ],
-              ),
-              const SizedBox(height: 24),
-              _buildSpecialOfferBanner(),
-              const SizedBox(height: 24),
-              _buildTogglePill(),
-              const SizedBox(height: 24),
-              if (isOverview) ...[
-                _buildOverviewSection(),
-              ] else ...[
-                _buildTransactionsSection(),
+      body: RefreshIndicator(
+        onRefresh: () => controller.fetchWalletData(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 10),
+                _buildBalanceCard(),
+                const SizedBox(height: 16),
+                _buildCashbackCard(),
+                const SizedBox(height: 20),
+                _buildTogglePill(),
+                const SizedBox(height: 20),
+                _buildCreditDebitSection(),
+                const SizedBox(height: 24),
+                _buildTransactionsHeader(),
+                const SizedBox(height: 16),
+                _buildSearchBar(),
+                const SizedBox(height: 16),
+                Obx(() {
+                  if (controller.isLoading.value && controller.transactions.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40.0),
+                        child: LoadingAnimationWidget.threeRotatingDots(
+                          color: AppTheme.primaryDeepBlue,
+                          size: 40,
+                        ),
+                      ),
+                    );
+                  }
+
+                  final items = controller.filteredTransactions;
+                  if (items.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 30),
+                      child: Center(
+                        child: Text(
+                          "No transactions found.",
+                          style: AppFonts.regularText.copyWith(color: AppTheme.textGrey400),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final displayItems = items.take(4).toList();
+
+                  return Column(
+                    children: [
+                      ...displayItems.map((t) {
+                        bool isPositive = _isPositiveTransaction(t);
+                        String formattedVal = formatPrice(t.amount ?? 0);
+                        String amtStr = "${isPositive ? "+" : "-"}₹$formattedVal";
+                        String? expiryStr;
+                        if (t.item?.toLowerCase().contains('apple') ?? false) {
+                          expiryStr = "Expiry: 14 Jan 2027";
+                        }
+                        String? bonusStr;
+                        if (isPositive && (t.amount ?? 0) >= 1000) {
+                          bonusStr = "+150 bonus";
+                        }
+
+                        return _buildTransactionItem(
+                          t.item ?? "Transaction",
+                          formatDate(t.date),
+                          amtStr,
+                          isPositive ? "topup" : "donation",
+                          subtitle: expiryStr,
+                          extra: bonusStr,
+                        );
+                      }),
+                      const SizedBox(height: 12),
+                      _buildViewAllButton(),
+                    ],
+                  );
+                }),
+                const SizedBox(height: 40),
               ],
-              const SizedBox(height: 40),
-            ],
+            ),
           ),
         ),
       ),
@@ -74,282 +219,211 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _buildBalanceCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.fieldBorderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppString.currentBalance.tr,
-            style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500, fontSize: 13),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "₹ 1775.50",
-            style: AppFonts.titleStyle.copyWith(fontSize: 32, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
+    return Obx(() {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        // decoration: BoxDecoration(
+        //   color: Colors.white,
+        //   borderRadius: BorderRadius.circular(20),
+        //   border: Border.all(color: AppTheme.fieldBorderColor),
+        //   boxShadow: [
+        //     BoxShadow(
+        //       color: Colors.black.withValues(alpha: 0.02),
+        //       blurRadius: 10,
+        //       offset: const Offset(0, 4),
+        //     ),
+        //   ],
+        // ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Available Balance",
+                  style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500, fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "₹ ${formatWalletAmount(controller.walletBalance.value)}",
+                  style: AppFonts.titleStyle.copyWith(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Get.toNamed(MyRouters.addMoneyScreen);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryDeepBlue,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                elevation: 0,
+              ),
+              child: Text(
+                "Recharge",
+                style: AppFonts.semiBoldText.copyWith(color: Colors.white, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildCashbackCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.fieldBorderColor),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.percent, color: Colors.blue, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppString.cashbackEarned.tr,
-                  style: AppFonts.semiBoldText.copyWith(fontSize: 14),
-                ),
-                Text(
-                  AppString.totalLifetimeRewards.tr,
-                  style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            "₹970",
-            style: AppFonts.semiBoldText.copyWith(color: Colors.blue, fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
+    return Obx(() {
+      double totalCashback = controller.transactions
+          .where((t) => t.item?.toLowerCase().contains('cashback') ?? false)
+          .fold(0.0, (sum, t) => sum + (t.amount ?? 0.0));
 
-  Widget _buildQuickActionButton(IconData icon, String title, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppTheme.fieldBorderColor),
         ),
-        child: Column(
+        child: Row(
           children: [
-            Icon(icon, color: AppTheme.primaryDeepBlue, size: 28),
-            const SizedBox(height: 12),
-            Text(title, style: AppFonts.mediumText.copyWith(fontSize: 13)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSpecialOfferBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.fieldBorderColor),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.card_giftcard, color: Colors.blue),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppString.specialOffer.tr,
-                  style: AppFonts.semiBoldText.copyWith(fontSize: 14),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  AppString.specialOfferDesc.tr,
-                  style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTogglePill() {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => isOverview = true),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isOverview ? Colors.black : Colors.transparent,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Text(
-                  AppString.overview.tr,
-                  style: AppFonts.mediumText.copyWith(
-                    color: isOverview ? Colors.white : AppTheme.textGrey500,
-                    fontSize: 14,
-                  ),
-                ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
               ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => isOverview = false),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: !isOverview ? Colors.black : Colors.transparent,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Text(
-                  AppString.transactions.tr,
-                  style: AppFonts.mediumText.copyWith(
-                    color: !isOverview ? Colors.white : AppTheme.textGrey500,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOverviewSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildCreditDebitBox(
-                icon: Icons.south_west,
-                iconColor: Colors.green,
-                title: AppString.credits.tr,
-                amount: "₹00",
-                subtitle: AppString.moneyReceived.tr,
-              ),
+              child: const Icon(Icons.percent, color: Colors.blue, size: 20),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildCreditDebitBox(
-                icon: Icons.north_east,
-                iconColor: Colors.red,
-                title: AppString.debits.tr,
-                amount: "₹00",
-                subtitle: AppString.moneySpent.tr,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppString.cashbackEarned.tr,
+                    style: AppFonts.semiBoldText.copyWith(fontSize: 14),
+                  ),
+                  Text(
+                    AppString.totalLifetimeRewards.tr,
+                    style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
             Text(
-              AppString.recentActivity.tr,
-              style: AppFonts.semiBoldText.copyWith(fontSize: 16),
-            ),
-            GestureDetector(
-              onTap: () {
-                Get.toNamed(MyRouters.transactionsScreen);
-              },
-              child: Text(
-                AppString.viewAll.tr,
-                style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: AppTheme.primaryDeepBlue),
-              ),
+              "₹${totalCashback.toStringAsFixed(0)}",
+              style: AppFonts.semiBoldText.copyWith(color: Colors.blue, fontSize: 16),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        _buildTransactionItem("Donation to Animal Rescue", "Oct 24, 2025 • 14:30", "-₹50", "donation"),
-        _buildTransactionItem("Top up via Apple Pay", "Oct 22, 2025 • 09:15", "+₹1,000", "topup", extra: "+150 bonus"),
-        _buildTransactionItem("Ocean Cleanup Project", "15 Oct 2025 • 10:30 AM", "+₹100", "donation"),
-      ],
-    );
+      );
+    });
   }
 
-  Widget _buildTransactionsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildTogglePill() {
+    return Obx(() {
+      bool isDonations = controller.selectedTab.value == 'Donations';
+
+      return Container(
+        height: 46,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(23),
+        ),
+        child: Row(
           children: [
-            Text(
-              AppString.recentTransactions.tr,
-              style: AppFonts.semiBoldText.copyWith(fontSize: 16),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => controller.selectedTab.value = 'Donations',
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isDonations ? Colors.black : Colors.transparent,
+                    borderRadius: BorderRadius.circular(23),
+                  ),
+                  child: Text(
+                    "Donations",
+                    style: AppFonts.mediumText.copyWith(
+                      color: isDonations ? Colors.white : AppTheme.textGrey500,
+                      fontSize: 14,
+                      fontWeight: isDonations ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ),
             ),
-            GestureDetector(
-              onTap: () {
-                Get.toNamed(MyRouters.transactionsScreen);
-              },
-              child: Text(
-                AppString.viewAll.tr,
-                style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: AppTheme.primaryDeepBlue),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => controller.selectedTab.value = 'Fundraising',
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: !isDonations ? Colors.black : Colors.transparent,
+                    borderRadius: BorderRadius.circular(23),
+                  ),
+                  child: Text(
+                    "Fundraising",
+                    style: AppFonts.mediumText.copyWith(
+                      color: !isDonations ? Colors.white : AppTheme.textGrey500,
+                      fontSize: 14,
+                      fontWeight: !isDonations ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        _buildTransactionItem("Donation to Animal Rescue", "Oct 24, 2025 • 14:30", "-₹50", "donation"),
-        _buildTransactionItem("Top up via Apple Pay", "Oct 22, 2025 • 09:15", "+₹1,000", "topup", extra: "+150 bonus"),
-        _buildTransactionItem("Ocean Cleanup Project", "15 Oct 2025 • 10:30 AM", "+₹100", "donation"),
-      ],
-    );
+      );
+    });
   }
 
-  Widget _buildCreditDebitBox({required IconData icon, required Color iconColor, required String title, required String amount, required String subtitle}) {
+  Widget _buildCreditDebitSection() {
+    return Obx(() {
+      double credits = controller.transactions
+          .where((t) => _isPositiveTransaction(t))
+          .fold(0.0, (sum, t) => sum + (t.amount ?? 0.0));
+      double debits = controller.transactions
+          .where((t) => !_isPositiveTransaction(t))
+          .fold(0.0, (sum, t) => sum + (t.amount ?? 0.0));
+
+      return Row(
+        children: [
+          Expanded(
+            child: _buildCreditDebitBox(
+              icon: Icons.south_west,
+              iconColor: Colors.green,
+              title: AppString.credits.tr,
+              amount: "₹${formatCreditDebitAmount(credits)}",
+              subtitle: AppString.moneyReceived.tr,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildCreditDebitBox(
+              icon: Icons.north_east,
+              iconColor: Colors.red,
+              title: AppString.debits.tr,
+              amount: "₹${formatCreditDebitAmount(debits)}",
+              subtitle: AppString.moneySpent.tr,
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildCreditDebitBox({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String amount,
+    required String subtitle,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -376,7 +450,69 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _buildTransactionItem(String title, String date, String amount, String type, {String? extra}) {
+  Widget _buildTransactionsHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          AppString.transactions.tr,
+          style: AppFonts.semiBoldText.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        GestureDetector(
+          onTap: () => _showFilterBottomSheet(context),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.fieldBorderColor),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.tune, size: 14, color: AppTheme.textGrey500),
+                const SizedBox(width: 4),
+                Text(
+                  "Filter",
+                  style: AppFonts.mediumText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.fieldBorderColor),
+      ),
+      child: TextField(
+        onChanged: (val) {
+          controller.searchQuery.value = val;
+        },
+        decoration: InputDecoration(
+          hintText: "Search",
+          hintStyle: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 13),
+          prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionItem(
+    String title,
+    String date,
+    String amount,
+    String type, {
+    String? subtitle,
+    String? extra,
+  }) {
     bool isPositive = amount.startsWith('+');
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -399,9 +535,18 @@ class _WalletScreenState extends State<WalletScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppFonts.mediumText.copyWith(fontSize: 14)),
+                Text(
+                  title, 
+                  style: AppFonts.mediumText.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 4),
                 Text(date, style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: AppFonts.regularText.copyWith(fontSize: 11, color: AppTheme.textGrey400)),
+                ],
               ],
             ),
           ),
@@ -412,16 +557,37 @@ class _WalletScreenState extends State<WalletScreen> {
                 amount,
                 style: AppFonts.semiBoldText.copyWith(
                   fontSize: 14,
+                  fontWeight: FontWeight.bold,
                   color: isPositive ? AppTheme.progressGreen : Colors.black,
                 ),
               ),
               if (extra != null) ...[
-                const SizedBox(height: 4),
-                Text(extra, style: AppFonts.regularText.copyWith(fontSize: 11, color: AppTheme.progressGreen)),
+                const SizedBox(height: 2),
+                Text(extra, style: AppFonts.mediumText.copyWith(fontSize: 11, color: AppTheme.progressGreen)),
               ]
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildViewAllButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: OutlinedButton(
+        onPressed: () {
+          Get.toNamed(MyRouters.transactionsScreen);
+        },
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: AppTheme.fieldBorderColor),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        ),
+        child: Text(
+          "View all",
+          style: AppFonts.mediumText.copyWith(fontSize: 14, color: Colors.black87),
+        ),
       ),
     );
   }

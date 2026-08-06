@@ -64,14 +64,20 @@ class CampaignSearchController extends GetxController {
     if (trimmed.isEmpty) return;
     addRecentSearchLocal(trimmed);
     try {
-      await Repositories().postApi(
+      final response = await Repositories().postApi(
         url: ApiUrls.recentSearchesUrl,
         mapData: {
-          "search": trimmed,
-          "keyword": trimmed,
+          "term": trimmed,
         },
         showResponse: true,
       );
+      if (response != null) {
+        final jsonResponse = jsonDecode(response);
+        final model = RecentSearchModel.fromJson(jsonResponse);
+        if (model.status == true && model.data != null) {
+          recentSearches.assignAll(model.data!);
+        }
+      }
     } catch (e) {
       // Silently fall back to local list update
     }

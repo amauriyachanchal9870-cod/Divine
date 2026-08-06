@@ -114,7 +114,7 @@ class _NgoDocumentsVerificationScreenState extends State<NgoDocumentsVerificatio
                   uploadTitle: AppString.uploadPanCardImage.tr,
                   file: _panImage,
                   onPickFile: () => _pickImage((file) => _panImage = file, (url) => _panImageUrl = url),
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+
                 ),
 
                 // TAN Card
@@ -125,7 +125,7 @@ class _NgoDocumentsVerificationScreenState extends State<NgoDocumentsVerificatio
                   uploadTitle: AppString.uploadTanCardImage.tr,
                   file: _tanImage,
                   onPickFile: () => _pickImage((file) => _tanImage = file, (url) => _tanImageUrl = url),
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+
                 ),
 
                 // GST Number
@@ -136,7 +136,7 @@ class _NgoDocumentsVerificationScreenState extends State<NgoDocumentsVerificatio
                   uploadTitle: AppString.uploadGstDocument.tr,
                   file: _gstImage,
                   onPickFile: () => _pickImage((file) => _gstImage = file, (url) => _gstImageUrl = url),
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+
                 ),
 
                 // 12A Registration
@@ -147,7 +147,7 @@ class _NgoDocumentsVerificationScreenState extends State<NgoDocumentsVerificatio
                   uploadTitle: AppString.upload12ACertificate.tr,
                   file: _12aImage,
                   onPickFile: () => _pickImage((file) => _12aImage = file, (url) => _12aImageUrl = url),
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+
                 ),
 
                 // 80G Registration
@@ -158,7 +158,7 @@ class _NgoDocumentsVerificationScreenState extends State<NgoDocumentsVerificatio
                   uploadTitle: AppString.upload80GCertificate.tr,
                   file: _80gImage,
                   onPickFile: () => _pickImage((file) => _80gImage = file, (url) => _80gImageUrl = url),
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+
                 ),
 
                 // Toggles
@@ -380,7 +380,7 @@ class _NgoDocumentsVerificationScreenState extends State<NgoDocumentsVerificatio
           useBorder: true,
           borderColor: AppTheme.fieldBorderColor,
           borderRadius: 10,
-          validator: validator,
+          validator: validator ?? (val) => val == null || val.trim().isEmpty ? hintText : null,
         ),
         const SizedBox(height: 16),
         Text(uploadTitle, style: AppFonts.smallText.copyWith(color: AppTheme.textGrey500)),

@@ -1,16 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../Model/dan_categories_model.dart';
+import '../../Model/dan_subcategories_model.dart';
 import '../../Utilities/app_theme.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Controller/daan_controller.dart';
 import '../../Routes/my_routes.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
-class DonateFoodScreen extends StatelessWidget {
+class DonateFoodScreen extends StatefulWidget {
   const DonateFoodScreen({super.key});
 
   @override
+  State<DonateFoodScreen> createState() => _DonateFoodScreenState();
+}
+
+class _DonateFoodScreenState extends State<DonateFoodScreen> {
+  late final DaanController controller;
+  late final DanCategoryData? category;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<DaanController>();
+    category = Get.arguments as DanCategoryData?;
+
+    // Fetch subcategories using the category's MongoDB _id
+    if (category?.id != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.fetchDaanSubCategories(category!.id!);
+      });
+    }
+  }
+
+  String getFallbackAsset(String? subcategoryId) {
+    switch (subcategoryId) {
+      case 'SUB-SAINTS':
+        return AppAssets.campaignImage;
+      case 'SUB-DRY-RATION':
+        return AppAssets.campaignImage;
+      case 'SUB-CHILDREN':
+        return AppAssets.campaignImage;
+      default:
+        return AppAssets.campaignImage;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final DaanController controller = Get.find<DaanController>();
+    final String screenTitle = category?.name ?? "Donate";
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -22,7 +61,7 @@ class DonateFoodScreen extends StatelessWidget {
           onPressed: () => Get.back(),
         ),
         title: Text(
-          "Donate Food",
+          screenTitle,
           style: AppFonts.titleStyle.copyWith(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         centerTitle: false,
@@ -31,62 +70,41 @@ class DonateFoodScreen extends StatelessWidget {
         return Column(
           children: [
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                children: [
-                  _buildFoodItemCard(
-                    title: "Saints & Brahmins Seva",
-                    subtitle: "Supports those who dedicate their lives to dharma and spiritual guidance through this.",
-                    imagePath: 'assets/images/campaign_image.png',
-                    itemCount: controller.saintsBrahminsItemCount,
-                    totalPrice: controller.saintsBrahminsTotal,
-                    onTapButton: () => Get.toNamed(MyRouters.daanDetailsScreen),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFoodItemCard(
-                    title: "Dry Rations",
-                    subtitle: "Supports those who dedicate their lives to dharma and spiritual guidance. Through this",
-                    imagePath: 'assets/images/campaign_image.png',
-                    itemCount: controller.dryRationsItemCount,
-                    totalPrice: controller.dryRationsTotal,
-                    onTapButton: () {
-                      if (controller.dryRationsQty.value == 0) {
-                        controller.dryRationsQty.value = 1;
-                      } else {
-                        controller.dryRationsQty.value = 0;
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFoodItemCard(
-                    title: "Support Needy Children",
-                    subtitle: "Supports those who dedicate their lives to dharma and spiritual guidance. Through this",
-                    imagePath: 'assets/images/campaign_image.png',
-                    itemCount: 0,
-                    totalPrice: 0,
-                    onTapButton: () {},
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFoodItemCard(
-                    title: "Support Disabled People",
-                    subtitle: "Supports those who dedicate their lives to dharma and spiritual guidance. Through this",
-                    imagePath: 'assets/images/campaign_image.png',
-                    itemCount: 0,
-                    totalPrice: 0,
-                    onTapButton: () {},
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFoodItemCard(
-                    title: "Support Needy Family",
-                    subtitle: "Supports those who dedicate their lives to dharma and spiritual guidance. Through this",
-                    imagePath: 'assets/images/campaign_image.png',
-                    itemCount: 0,
-                    totalPrice: 0,
-                    onTapButton: () {},
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
+              child: controller.subCategoryLoading.value
+                  ? Center(
+                      child: LoadingAnimationWidget.threeRotatingDots(
+                        color: AppTheme.primaryDeepBlue,
+                        size: 50,
+                      ),
+                    )
+                  : controller.subCategories.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.inbox_outlined, size: 48, color: AppTheme.textGrey400),
+                              const SizedBox(height: 12),
+                              Text(
+                                "No subcategories available.",
+                                style: AppFonts.regularText.copyWith(color: AppTheme.textGrey400),
+                              ),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: () => controller.fetchDaanSubCategories(category?.id ?? ''),
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            itemCount: controller.subCategories.length,
+                            itemBuilder: (context, index) {
+                              final sub = controller.subCategories[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16.0),
+                                child: _buildSubCategoryCard(sub),
+                              );
+                            },
+                          ),
+                        ),
             ),
             _buildBottomBar(controller),
           ],
@@ -95,14 +113,7 @@ class DonateFoodScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFoodItemCard({
-    required String title,
-    required String subtitle,
-    required String imagePath,
-    required int itemCount,
-    required int totalPrice,
-    required VoidCallback onTapButton,
-  }) {
+  Widget _buildSubCategoryCard(DanSubCategoryData sub) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -124,87 +135,73 @@ class DonateFoodScreen extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Image
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    imagePath,
-                    width: 70,
-                    height: 70,
-                    fit: BoxFit.cover,
-                  ),
+                  child: sub.imageUrl != null
+                      ? Image.network(
+                          sub.imageUrl!,
+                          width: 70,
+                          height: 70,
+                          fit: BoxFit.cover,
+                          errorBuilder: (c, e, s) => Image.asset(
+                            getFallbackAsset(sub.subcategoryId),
+                            width: 70,
+                            height: 70,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Image.asset(
+                          getFallbackAsset(sub.subcategoryId),
+                          width: 70,
+                          height: 70,
+                          fit: BoxFit.cover,
+                        ),
                 ),
                 const SizedBox(width: 12),
+                // Title + description + NGO badge
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
+                        sub.name ?? "",
                         style: AppFonts.semiBoldText.copyWith(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        subtitle,
+                        sub.description ?? "",
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppFonts.regularText.copyWith(fontSize: 11, color: AppTheme.textGrey500, height: 1.3),
                       ),
+                      if (sub.ngoId != null) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.account_balance_outlined, size: 11, color: Colors.blue),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                sub.ngoId!.name ?? "",
+                                style: AppFonts.regularText.copyWith(fontSize: 10, color: Colors.blue),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ],
             ),
           ),
+          // Action button
           Padding(
             padding: const EdgeInsets.fromLTRB(12.0, 0, 12.0, 12.0),
-            child: itemCount > 0
-                ? GestureDetector(
-                    onTap: onTapButton,
-                    child: Container(
-                      width: double.infinity,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.primaryDeepBlue, width: 1.2),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "$itemCount Items",
-                            style: AppFonts.semiBoldText.copyWith(
-                              fontSize: 12.0,
-                              color: AppTheme.primaryDeepBlue,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                            child: Text(
-                              "|",
-                              style: TextStyle(
-                                color: AppTheme.primaryDeepBlue.withValues(alpha: 0.4),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w300,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            "₹ $totalPrice",
-                            style: AppFonts.semiBoldText.copyWith(
-                              fontSize: 12.0,
-                              color: AppTheme.primaryDeepBlue,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(Icons.edit_outlined, size: 14, color: AppTheme.primaryDeepBlue),
-                        ],
-                      ),
-                    ),
-                  )
-                : SizedBox(
+            child: SizedBox(
                     width: double.infinity,
                     height: 40,
                     child: ElevatedButton(
@@ -213,7 +210,7 @@ class DonateFoodScreen extends StatelessWidget {
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      onPressed: onTapButton,
+                      onPressed: () => Get.toNamed(MyRouters.daanDetailsScreen, arguments: sub),
                       child: Text(
                         "Add Items",
                         style: TextStyle(
@@ -276,7 +273,7 @@ class DonateFoodScreen extends StatelessWidget {
                     elevation: 0,
                   ),
                   onPressed: () {
-                    if (controller.totalAmount > 0) {
+                    if (controller.itemsTotal > 0) {
                       Get.toNamed(MyRouters.chooseImpactScreen);
                     } else {
                       Get.snackbar(
@@ -298,13 +295,9 @@ class DonateFoodScreen extends StatelessWidget {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            height: 20,
-                            width: 1,
-                            color: Colors.white30,
-                          ),
+                          Container(height: 20, width: 1, color: Colors.white30),
                           const SizedBox(width: 12),
-                          Column(
+                          Obx(() => Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -313,11 +306,11 @@ class DonateFoodScreen extends StatelessWidget {
                                 style: TextStyle(color: Colors.white70, fontSize: 9),
                               ),
                               Text(
-                                "₹ ${controller.totalAmount}",
+                                "₹ ${controller.itemsTotal}",
                                 style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                               ),
                             ],
-                          ),
+                          )),
                         ],
                       ),
                     ],

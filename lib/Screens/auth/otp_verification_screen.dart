@@ -95,7 +95,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   style: AppFonts.smallText.copyWith(color: AppTheme.textGrey500),
                   children: [
                     TextSpan(
-                      text: Get.arguments?['phone'] ?? "+91 ********74",
+                      text: Get.arguments?['phone'] ?? AppString.defaultPhonePlaceholder.tr,
                       style: AppFonts.smallText.copyWith(color: AppTheme.blackColor, fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -117,8 +117,8 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                         text: _canResend
                             ? (AppString.didntReceiveOtpResend.tr.split('?').length > 1
                                 ? AppString.didntReceiveOtpResend.tr.split('?')[1].trim()
-                                : 'Resend')
-                            : 'Resend in ${_secondsRemaining}s',
+                                : AppString.resend.tr)
+                            : AppString.resendInSeconds.trParams({'seconds': _secondsRemaining.toString()}),
                         style: AppFonts.smallText.copyWith(
                           color: _canResend ? AppTheme.primaryDeepBlue : AppTheme.textGrey500,
                           fontWeight: FontWeight.bold,
@@ -137,7 +137,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                                       _startTimer();
                                     }
                                   } else {
-                                    showSnackBar("Phone number is missing", false);
+                                    showSnackBar(AppString.phoneMissingError.tr, false);
                                   }
                                 }
                               : null,
@@ -177,7 +177,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 onTap: () {
                   bool isOtpIncomplete = controllers.any((controller) => controller.text.trim().isEmpty);
                   if (isOtpIncomplete) {
-                    showSnackBar("Please enter the complete OTP", false);
+                    showSnackBar(AppString.enterCompleteOtpError.tr, false);
                     return;
                   }
                   

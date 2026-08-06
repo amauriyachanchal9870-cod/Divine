@@ -1,3 +1,15 @@
+bool? _parseBool(dynamic value) {
+  if (value == null) return null;
+  if (value is bool) return value;
+  if (value is String) {
+    final lower = value.trim().toLowerCase();
+    if (lower == 'true' || lower == '1' || lower == 'yes') return true;
+    if (lower == 'false' || lower == '0' || lower == 'no') return false;
+  }
+  if (value is num) return value != 0;
+  return null;
+}
+
 class ProfileModel {
   bool? status;
   ProfileData? data;
@@ -6,7 +18,7 @@ class ProfileModel {
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
     return ProfileModel(
-      status: json['status'],
+      status: _parseBool(json['status']),
       data: json['data'] != null ? ProfileData.fromJson(json['data']) : null,
     );
   }
@@ -137,62 +149,183 @@ class ProfileData {
   });
 
   factory ProfileData.fromJson(Map<String, dynamic> json) {
+    Map<String, dynamic>? userMap = json['user'] is Map<String, dynamic> ? json['user'] : null;
+    Map<String, dynamic>? ngoMap = json['ngo'] is Map<String, dynamic> ? json['ngo'] : null;
+    Map<String, dynamic>? profileMap = json['profile'] is Map<String, dynamic> ? json['profile'] : null;
+    Map<String, dynamic>? dataMap = json['data'] is Map<String, dynamic> ? json['data'] : null;
+
+    String? parseString(String key, [List<String>? altKeys]) {
+      if (json[key] != null && json[key].toString().trim().isNotEmpty) {
+        return json[key].toString().trim();
+      }
+      if (altKeys != null) {
+        for (var k in altKeys) {
+          if (json[k] != null && json[k].toString().trim().isNotEmpty) {
+            return json[k].toString().trim();
+          }
+        }
+      }
+      final maps = [userMap, ngoMap, profileMap, dataMap];
+      for (var m in maps) {
+        if (m != null) {
+          if (m[key] != null && m[key].toString().trim().isNotEmpty) {
+            return m[key].toString().trim();
+          }
+          if (altKeys != null) {
+            for (var k in altKeys) {
+              if (m[k] != null && m[k].toString().trim().isNotEmpty) {
+                return m[k].toString().trim();
+              }
+            }
+          }
+        }
+      }
+      return null;
+    }
+
+    double? parseDouble(String key, [List<String>? altKeys]) {
+      if (json[key] != null && json[key] is num) {
+        return (json[key] as num).toDouble();
+      }
+      if (altKeys != null) {
+        for (var k in altKeys) {
+          if (json[k] != null && json[k] is num) {
+            return (json[k] as num).toDouble();
+          }
+        }
+      }
+      final maps = [userMap, ngoMap, profileMap, dataMap];
+      for (var m in maps) {
+        if (m != null) {
+          if (m[key] != null && m[key] is num) {
+            return (m[key] as num).toDouble();
+          }
+          if (altKeys != null) {
+            for (var k in altKeys) {
+              if (m[k] != null && m[k] is num) {
+                return (m[k] as num).toDouble();
+              }
+            }
+          }
+        }
+      }
+      return null;
+    }
+
+    bool? parseBoolVal(String key, [List<String>? altKeys]) {
+      if (json[key] != null) {
+        return _parseBool(json[key]);
+      }
+      if (altKeys != null) {
+        for (var k in altKeys) {
+          if (json[k] != null) {
+            return _parseBool(json[k]);
+          }
+        }
+      }
+      final maps = [userMap, ngoMap, profileMap, dataMap];
+      for (var m in maps) {
+        if (m != null) {
+          if (m[key] != null) {
+            return _parseBool(m[key]);
+          }
+          if (altKeys != null) {
+            for (var k in altKeys) {
+              if (m[k] != null) {
+                return _parseBool(m[k]);
+              }
+            }
+          }
+        }
+      }
+      return null;
+    }
+
+    List<dynamic>? parseList(String key, [List<String>? altKeys]) {
+      if (json[key] != null && json[key] is List) {
+        return List<dynamic>.from(json[key]);
+      }
+      if (altKeys != null) {
+        for (var k in altKeys) {
+          if (json[k] != null && json[k] is List) {
+            return List<dynamic>.from(json[k]);
+          }
+        }
+      }
+      final maps = [userMap, ngoMap, profileMap, dataMap];
+      for (var m in maps) {
+        if (m != null) {
+          if (m[key] != null && m[key] is List) {
+            return List<dynamic>.from(m[key]);
+          }
+          if (altKeys != null) {
+            for (var k in altKeys) {
+              if (m[k] != null && m[k] is List) {
+                return List<dynamic>.from(m[k]);
+              }
+            }
+          }
+        }
+      }
+      return null;
+    }
+
     return ProfileData(
-      id: json['_id'],
-      phone: json['phone'],
-      role: json['role'],
-      gender: json['gender'],
-      profilePhoto: json['profilePhoto'],
-      walletBalance: (json['walletBalance'] as num?)?.toDouble(),
-      name: json['name'],
-      organizationName: json['organizationName'],
-      logo: json['logo'],
-      rating: (json['rating'] as num?)?.toDouble(),
-      impactStats: json['impactStats'],
-      registeredAddress: json['registeredAddress'],
-      addressCertificate: json['addressCertificate'],
-      authorizedPerson: json['authorizedPerson'],
-      designation: json['designation'],
-      panNumber: json['panNumber'],
-      panImage: json['panImage'],
-      tanNumber: json['tanNumber'],
-      tanImage: json['tanImage'],
-      gstNumber: json['gstNumber'],
-      gstDocument: json['gstDocument'],
-      registration12A: json['registration12A'],
-      certificate12A: json['certificate12A'],
-      registration80G: json['registration80G'],
-      certificate80G: json['certificate80G'],
-      hasDarpan: json['hasDarpan'],
-      darpanNumber: json['darpanNumber'],
-      darpanCertificate: json['darpanCertificate'],
-      hasCSR1: json['hasCSR1'],
-      csr1Number: json['csr1Number'],
-      csr1Certificate: json['csr1Certificate'],
-      hasFCRA: json['hasFCRA'],
-      fcraNumber: json['fcraNumber'],
-      fcraCertificate: json['fcraCertificate'],
-      hasOtherRegistration: json['hasOtherRegistration'],
-      otherRegistrationName: json['otherRegistrationName'],
-      otherRegistrationCertificate: json['otherRegistrationCertificate'],
-      bankAccountHolder: json['bankAccountHolder'],
-      bankName: json['bankName'],
-      bankBranch: json['bankBranch'],
-      bankAccountNumber: json['bankAccountNumber'],
-      bankIFSC: json['bankIFSC'],
-      otp: json['otp'],
-      otpExpiry: json['otpExpiry'],
-      isProfileComplete: json['isProfileComplete'],
-      createdAt: json['createdAt'],
-      updatedAt: json['updatedAt'],
-      email: json['email'],
-      couponsClaimed: json['couponsClaimed'] != null ? List<dynamic>.from(json['couponsClaimed']) : null,
-      followers: json['followers'] != null ? List<dynamic>.from(json['followers']) : null,
-      followingNgos: json['followingNgos'] != null ? List<dynamic>.from(json['followingNgos']) : null,
-      followingUsers: json['followingUsers'] != null ? List<dynamic>.from(json['followingUsers']) : null,
-      referralCode: json['referralCode'],
-      referredBy: json['referredBy'],
-      searchHistory: json['searchHistory'] != null ? List<dynamic>.from(json['searchHistory']) : null,
+      id: parseString('_id', ['id']),
+      phone: parseString('phone', ['mobile', 'phoneNumber', 'contactNumber', 'contact']),
+      role: parseString('role', ['userRole', 'type', 'accountType']),
+      gender: parseString('gender'),
+      profilePhoto: parseString('profilePhoto', ['logo', 'avatar', 'photo', 'imageUrl']),
+      walletBalance: parseDouble('walletBalance', ['balance']),
+      name: parseString('name', ['fullName', 'userName', 'ownerName']),
+      organizationName: parseString('organizationName', ['orgName', 'ngoName', 'companyName']),
+      logo: parseString('logo', ['profilePhoto', 'avatar', 'photo', 'imageUrl']),
+      rating: parseDouble('rating'),
+      impactStats: parseString('impactStats', ['about', 'description']),
+      registeredAddress: parseString('registeredAddress', ['address', 'location']),
+      addressCertificate: parseString('addressCertificate'),
+      authorizedPerson: parseString('authorizedPerson'),
+      designation: parseString('designation'),
+      panNumber: parseString('panNumber'),
+      panImage: parseString('panImage'),
+      tanNumber: parseString('tanNumber'),
+      tanImage: parseString('tanImage'),
+      gstNumber: parseString('gstNumber'),
+      gstDocument: parseString('gstDocument'),
+      registration12A: parseString('registration12A'),
+      certificate12A: parseString('certificate12A'),
+      registration80G: parseString('registration80G'),
+      certificate80G: parseString('certificate80G'),
+      hasDarpan: parseBoolVal('hasDarpan'),
+      darpanNumber: parseString('darpanNumber'),
+      darpanCertificate: parseString('darpanCertificate'),
+      hasCSR1: parseBoolVal('hasCSR1'),
+      csr1Number: parseString('csr1Number'),
+      csr1Certificate: parseString('csr1Certificate'),
+      hasFCRA: parseBoolVal('hasFCRA'),
+      fcraNumber: parseString('fcraNumber'),
+      fcraCertificate: parseString('fcraCertificate'),
+      hasOtherRegistration: parseBoolVal('hasOtherRegistration'),
+      otherRegistrationName: parseString('otherRegistrationName'),
+      otherRegistrationCertificate: parseString('otherRegistrationCertificate'),
+      bankAccountHolder: parseString('bankAccountHolder', ['holderName']),
+      bankName: parseString('bankName'),
+      bankBranch: parseString('bankBranch'),
+      bankAccountNumber: parseString('bankAccountNumber', ['accountNumber']),
+      bankIFSC: parseString('bankIFSC', ['ifscCode', 'ifsc']),
+      otp: parseString('otp'),
+      otpExpiry: parseString('otpExpiry'),
+      isProfileComplete: parseBoolVal('isProfileComplete'),
+      createdAt: parseString('createdAt'),
+      updatedAt: parseString('updatedAt'),
+      email: parseString('email', ['userEmail', 'contactEmail']),
+      couponsClaimed: parseList('couponsClaimed'),
+      followers: parseList('followers'),
+      followingNgos: parseList('followingNgos'),
+      followingUsers: parseList('followingUsers'),
+      referralCode: parseString('referralCode'),
+      referredBy: parseString('referredBy'),
+      searchHistory: parseList('searchHistory'),
     );
   }
 

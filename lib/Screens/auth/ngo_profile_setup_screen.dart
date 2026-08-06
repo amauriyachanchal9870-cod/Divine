@@ -12,6 +12,7 @@ import '../../Utilities/custom_textfield.dart';
 import '../../Routes/my_routes.dart';
 import '../../Utilities/custom_appbar.dart';
 import '../../Utilities/helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NgoProfileSetupScreen extends StatefulWidget {
   const NgoProfileSetupScreen({super.key});
@@ -35,6 +36,32 @@ class _NgoProfileSetupScreenState extends State<NgoProfileSetupScreen> {
   File? _addressCertificate;
   String? _profileImageUrl;
   String? _addressCertificateUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhoneNumber();
+  }
+
+  Future<void> _loadPhoneNumber() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? storedPhone = prefs.getString('userPhone');
+    if (storedPhone != null && storedPhone.isNotEmpty) {
+      setState(() {
+        phoneController.text = storedPhone;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    orgNameController.dispose();
+    addressController.dispose();
+    authPersonController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImage(bool isProfile) async {
     final ImagePicker picker = ImagePicker();
@@ -110,7 +137,7 @@ class _NgoProfileSetupScreenState extends State<NgoProfileSetupScreen> {
                                 : null,
                           ),
                           child: _profileImage == null
-                              ? Icon(Icons.business, size: 50, color: Colors.grey.shade400)
+                              ? Icon(Icons.person, size: 50, color: Colors.grey.shade400)
                               : null,
                         ),
                         Positioned(
@@ -141,7 +168,7 @@ class _NgoProfileSetupScreenState extends State<NgoProfileSetupScreen> {
                   useBorder: true,
                   borderColor: AppTheme.fieldBorderColor,
                   borderRadius: 10,
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  validator: (val) => val == null || val.isEmpty ? 'Please enter organization name' : null,
                 ),
                 const SizedBox(height: 24),
                 
@@ -154,7 +181,7 @@ class _NgoProfileSetupScreenState extends State<NgoProfileSetupScreen> {
                   useBorder: true,
                   borderColor: AppTheme.fieldBorderColor,
                   borderRadius: 10,
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  validator: (val) => val == null || val.isEmpty ? 'Please enter registered address' : null,
                 ),
                 const SizedBox(height: 24),
                 
@@ -173,12 +200,12 @@ class _NgoProfileSetupScreenState extends State<NgoProfileSetupScreen> {
                   useBorder: true,
                   borderColor: AppTheme.fieldBorderColor,
                   borderRadius: 10,
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  validator: (val) => val == null || val.isEmpty ? 'Please enter full name' : null,
                 ),
                 const SizedBox(height: 24),
 
                 // Phone Number
-                // Text(AppString.enterPhoneNo.tr, style: AppFonts.smallText.copyWith(color: AppTheme.textGrey500)),
+                Text(AppString.enterPhoneNo.tr, style: AppFonts.smallText.copyWith(color: AppTheme.textGrey500)),
                 const SizedBox(height: 8),
                 CommonTextField(
                   controller: phoneController,
@@ -187,7 +214,9 @@ class _NgoProfileSetupScreenState extends State<NgoProfileSetupScreen> {
                   useBorder: true,
                   borderColor: AppTheme.fieldBorderColor,
                   borderRadius: 10,
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  readOnly: true,
+                  backgroundColor: AppTheme.greyBg100,
+                  validator: (val) => val == null || val.isEmpty ? 'Please enter phone number' : null,
                 ),
                 const SizedBox(height: 24),
 
@@ -201,7 +230,16 @@ class _NgoProfileSetupScreenState extends State<NgoProfileSetupScreen> {
                   useBorder: true,
                   borderColor: AppTheme.fieldBorderColor,
                   borderRadius: 10,
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Please enter email address';
+                    }
+                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    if (!emailRegex.hasMatch(val.trim())) {
+                      return 'Please enter a valid email address';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 24),
 
@@ -268,12 +306,9 @@ class _NgoProfileSetupScreenState extends State<NgoProfileSetupScreen> {
                   height: 50,
                   width: double.infinity,
                   title: AppString.continueText.tr,
-                  onTap: () {
+                  onTap: () async {
                     if (_formKey.currentState!.validate()) {
-                      if (_profileImage == null) {
-                        showSnackBar("Please select a profile image", false);
-                        return;
-                      }
+                      final email = emailController.text.trim();
                       if (_addressCertificate == null) {
                         showSnackBar("Please upload registered address certificate", false);
                         return;
@@ -286,6 +321,13 @@ class _NgoProfileSetupScreenState extends State<NgoProfileSetupScreen> {
                         showSnackBar("Please select your gender", false);
                         return;
                       }
+
+                      final AuthController authController = Get.put(AuthController());
+                      bool isAvailable = await authController.checkEmailAvailability(context, email);
+                      if (!isAvailable) {
+                        return;
+                      }
+
                       Get.toNamed(
                         MyRouters.ngoDocumentsVerificationScreen,
                         arguments: {
@@ -293,7 +335,7 @@ class _NgoProfileSetupScreenState extends State<NgoProfileSetupScreen> {
                           'registeredAddress': addressController.text.trim(),
                           'authorizedPerson': authPersonController.text.trim(),
                           'phone': phoneController.text.trim(),
-                          'email': emailController.text.trim(),
+                          'email': email,
                           'designation': selectedDesignation,
                           'gender': selectedGender,
                           'profilePhoto': _profileImageUrl ?? _profileImage,

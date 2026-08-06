@@ -3,11 +3,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:html_unescape/html_unescape.dart';
-import 'package:intl/intl.dart';
 import 'package:html/parser.dart' as html_parser;
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 
 import 'app_theme.dart';
@@ -22,20 +21,14 @@ class Helpers {
   }
   static OverlayEntry overlayLoader(context) {
     OverlayEntry loader = OverlayEntry(builder: (context) {
-      final size = MediaQuery.of(context).size;
-      return Positioned(
-        height: size.height,
-        width: size.width,
-        top: 0,
-        left: 0,
+      return Positioned.fill(
         child: Material(
-          color: AppTheme.primaryColor.withValues(alpha: 0.02),
-          child:  Center(
-              child: Center(child: CircularProgressIndicator(color: AppTheme.primaryDeepBlue,))
-            // CircularProgressIndicator(
-            //   color: AppTheme.white,
-            //
-            // ),
+          color: Colors.white.withValues(alpha: 0.8),
+          child: Center(
+            child: LoadingAnimationWidget.threeRotatingDots(
+              color: AppTheme.primaryDeepBlue,
+              size: 50,
+            ),
           ),
         ),
       );
@@ -81,12 +74,17 @@ Future<TimeOfDay?> selectTime(BuildContext context) async {
 }
 
 String formatPrice(num price) {
-  if (price >= 1000000) {
-    return '${(price / 1000000).toStringAsFixed(price % 1000000 == 0 ? 0 : 1)}M';
+  if (price >= 100000000) {
+    num val = price / 100000000;
+    return '${val % 1 == 0 ? val.toInt() : val.toStringAsFixed(1)}B';
+  } else if (price >= 1000000) {
+    num val = price / 1000000;
+    return '${val % 1 == 0 ? val.toInt() : val.toStringAsFixed(1)}M';
   } else if (price >= 1000) {
-    return '${(price / 1000).toStringAsFixed(price % 1000 == 0 ? 0 : 1)}K';
+    num val = price / 1000;
+    return '${val % 1 == 0 ? val.toInt() : val.toStringAsFixed(1)}K';
   } else {
-    return price.toString();
+    return price % 1 == 0 ? price.toInt().toString() : price.toString();
   }
 }
 
@@ -122,8 +120,7 @@ String maskName(String name) {
     return '';
   }
 
-  int minLength=19;
-  LengthLimitingTextInputFormatter lengthFormatter = LengthLimitingTextInputFormatter(minLength);
+
 
   // MaskTextInputFormatter maskFormatter = MaskTextInputFormatter(mask: '+1 (###) ### - ####', filter: {"#": RegExp(r'[0-9]')});
 
@@ -175,34 +172,6 @@ String formatPhoneNumber(String phoneNumber) {
       phoneNumber = phoneNumber.substring(1);
     } // Return the original string if it doesn't have 10 digits
   }
-
-  String convertDateToText(String? dateStr) {
-    if (dateStr == null) {
-      return "";
-    }
-    try {
-      DateTime date = DateTime.parse(dateStr);
-      DateTime now = DateTime.now();
-      DateTime yesterday = now.subtract(const Duration(days: 1));
-
-      if (date.year == now.year &&
-          date.month == now.month &&
-          date.day == now.day) {
-        return "Today";
-      } else if (date.year == yesterday.year &&
-          date.month == yesterday.month &&
-          date.day == yesterday.day) {
-        return 'Yesterday, ${DateFormat('MMM dd, yyyy').format(date)}';
-      } else {
-        return DateFormat('MMM dd, yyyy').format(date);
-      }
-    } catch (e) {
-      return "Invalid Date";
-    }
-  }
-
-
-
   if (phoneNumber.length != 10) {
     return phoneNumber; // Return the original string if it doesn't have 10 digits
   }

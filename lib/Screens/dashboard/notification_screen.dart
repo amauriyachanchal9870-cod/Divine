@@ -4,7 +4,9 @@ import 'package:intl/intl.dart';
 import '../../Controller/notification_controller.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class NotificationScreen extends StatelessWidget {
   const NotificationScreen({super.key});
@@ -49,12 +51,29 @@ class NotificationScreen extends StatelessWidget {
         ),
         title: Text(AppString.notification.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
         centerTitle: false,
+        actions: [
+          Obx(() {
+            final hasUnread = controller.notifications.any((n) => n.isRead == false);
+            if (!hasUnread) return const SizedBox.shrink();
+            return TextButton(
+              onPressed: () => controller.markNotificationsAsRead(),
+              child: Text(
+                AppString.markAllAsRead.tr,
+                style: AppFonts.semiBoldText.copyWith(
+                  fontSize: 12,
+                  color: AppTheme.primaryDeepBlue,
+                ),
+              ),
+            );
+          }),
+        ],
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
           return Center(
-            child: CircularProgressIndicator(
+            child: LoadingAnimationWidget.threeRotatingDots(
               color: AppTheme.primaryDeepBlue,
+              size: 50,
             ),
           );
         }
@@ -160,7 +179,7 @@ class NotificationScreen extends StatelessWidget {
                     CircleAvatar(
                       radius: 22,
                       backgroundColor: AppTheme.fieldBorderColor,
-                      backgroundImage: const AssetImage('assets/images/ngo_logo.png'),
+                      backgroundImage: const AssetImage(AppAssets.ngoLogo),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
