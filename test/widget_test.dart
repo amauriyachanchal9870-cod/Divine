@@ -1,30 +1,47 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:divine_foundation/main.dart';
+import 'package:divine_foundation/Widget/app_loader.dart';
+import 'package:divine_foundation/Widget/shimmer_widget.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Widget Tests - Reusable UI Components', () {
+    testWidgets('AppLoader renders correctly with custom size and color', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AppLoader(
+              size: 40.0,
+              color: Colors.green,
+            ),
+          ),
+        ),
+      );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      // Verify that the AppLoader widget is present in widget tree
+      expect(find.byType(AppLoader), findsOneWidget);
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    testWidgets('ShimmerWidget renders with custom width, height, and border radius', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ShimmerWidget(
+              width: 120,
+              height: 40,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      expect(find.byType(ShimmerWidget), findsOneWidget);
+
+      // Advance animation frame
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(ShimmerWidget), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 1200));
+      expect(find.byType(ShimmerWidget), findsOneWidget);
+    });
   });
 }

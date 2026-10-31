@@ -30,16 +30,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       profileController.fetchProfile(context);
-      if (Get.isRegistered<HomeController>()) {
-        Get.find<HomeController>().fetchHomeData();
-      } else {
-        Get.put(HomeController());
-      }
-      if (Get.isRegistered<WalletController>()) {
-        Get.find<WalletController>().fetchWalletData();
-      } else {
-        Get.put(WalletController());
-      }
     });
   }
 
@@ -50,13 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            await profileController.fetchProfile(context);
-            if (Get.isRegistered<HomeController>()) {
-              await Get.find<HomeController>().fetchHomeData();
-            }
-            if (Get.isRegistered<WalletController>()) {
-              await Get.find<WalletController>().fetchWalletData();
-            }
+            await profileController.fetchProfile(context, forceRefresh: true);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -75,7 +59,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 12),
                   Obx(() {
-                    final isDonor = profileController.profileData.value?.role == "donor";
+                    final userRole = (profileController.profileData.value?.role ?? (Get.isRegistered<HomeController>() ? Get.find<HomeController>().user?.role : "") ?? "").toLowerCase();
+                    final isDonor = userRole == "donor";
+                    final isCorporate = userRole == "corporate";
+                    final isNgo = userRole == "ngo";
                     return Container(
                       decoration: BoxDecoration(
                         color: AppTheme.whiteColor,
@@ -96,67 +83,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             AppString.donationHistory.tr, 
                             () => Get.toNamed(MyRouters.donationHistoryScreen)
                           ),
-                          _buildMenuTile(
-                            AppAssets.createCampaign, 
-                            "Raise Campaign".tr, 
-                            () => mainNavKey.currentState?.changeTab(2)
-                          ),
+                          if (!isCorporate)
+                            _buildMenuTile(
+                              AppAssets.createCampaign, 
+                              "Raise Campaign".tr, 
+                              () => mainNavKey.currentState?.changeTab(2)
+                            ),
                           _buildMenuTile(
                             AppAssets.activeCampaign, 
                             AppString.activeCampaigns.tr, 
                             () => Get.toNamed(MyRouters.activeCampaignsScreen)
                           ),
                           _buildMenuTile(
-                            AppAssets.follows, 
-                            AppString.followingNgos.tr, 
-                            () => Get.toNamed(MyRouters.followingNgosScreen)
+                            AppAssets.activeCampaign, 
+                            AppString.myCampaigns.tr, 
+                            () => Get.toNamed(MyRouters.myCampaignsScreen)
                           ),
                           _buildMenuTile(
-                            AppAssets.coupon, 
-                            AppString.coupons.tr, 
-                            () => Get.toNamed(MyRouters.couponsScreen)
+                              AppAssets.follows,
+                              AppString.followingNgos.tr,
+                                  () => Get.toNamed(MyRouters.followingNgosScreen)
                           ),
+                          // _buildMenuTile(
+                          //   AppAssets.coupon,
+                          //   AppString.coupons.tr,
+                          //   () => Get.toNamed(MyRouters.couponsScreen)
+                          // ),
                           _buildMenuTile(
                             AppAssets.refer, 
                             AppString.referAndEarn.tr, 
-                            () => Get.toNamed(MyRouters.referralRewardsScreen),
+                            // () => Get.toNamed(MyRouters.referralRewardsScreen),
+                                  () => Get.toNamed(MyRouters.comingSoonScreen),
                             showDivider: false
                           ),
                         ] : [
+                          if (isNgo)
+                            _buildMenuTile(
+                              AppAssets.homeFill, 
+                              "NGO Dashboard", 
+                              () => Get.toNamed(MyRouters.ngoDashboardScreen)
+                            ),
                           _buildMenuTile(
                             AppAssets.donationHistory, 
                             AppString.donationHistory.tr, 
                             () => Get.toNamed(MyRouters.donationHistoryScreen)
                           ),
-                          _buildMenuTile(
-                            AppAssets.createCampaign, 
-                            "Raise Campaign".tr, 
-                            () => mainNavKey.currentState?.changeTab(2)
-                          ),
+                          if (!isCorporate)
+                            _buildMenuTile(
+                              AppAssets.createCampaign, 
+                              "Raise Campaign".tr, 
+                              () => mainNavKey.currentState?.changeTab(2)
+                            ),
                           _buildMenuTile(
                             AppAssets.activeCampaign, 
                             AppString.activeCampaigns.tr, 
                             () => Get.toNamed(MyRouters.activeCampaignsScreen)
                           ),
+                          if (!isCorporate)
                           _buildMenuTile(
-                            AppAssets.follows, 
-                            AppString.follows.tr, 
-                            () => Get.toNamed(MyRouters.followingNgosScreen)
+                            AppAssets.activeCampaign, 
+                            AppString.myCampaigns.tr, 
+                            () => Get.toNamed(MyRouters.myCampaignsScreen)
                           ),
+                            _buildMenuTile(
+                              AppAssets.follows,
+                                isNgo ? AppString.socialNetwork.tr : AppString.followingNgos.tr,
+                              () => Get.toNamed(MyRouters.followingNgosScreen)
+                            ),
+                          if (isNgo)
                           _buildMenuTile(
                             AppAssets.myReviews, 
                             AppString.myReviews.tr, 
                             () => Get.toNamed(MyRouters.myReviewsScreen)
                           ),
-                          _buildMenuTile(
-                            AppAssets.coupon, 
-                            AppString.coupons.tr, 
-                            () => Get.toNamed(MyRouters.couponsScreen)
-                          ),
+                          // _buildMenuTile(
+                          //   AppAssets.coupon,
+                          //   AppString.coupons.tr,
+                          //   () => Get.toNamed(MyRouters.couponsScreen)
+                          // ),
                           _buildMenuTile(
                             AppAssets.refer, 
                             AppString.referAndEarn.tr, 
-                            () => Get.toNamed(MyRouters.referralRewardsScreen),
+                            // () => Get.toNamed(MyRouters.referralRewardsScreen),
+                            () => Get.toNamed(MyRouters.comingSoonScreen),
                             showDivider: false
                           ),
                         ],
@@ -242,14 +251,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
 
+      final role = (p?.role ?? homeController.user?.role ?? '').toLowerCase();
+      final bool isOrg = role == 'ngo' || role == 'corporate';
+
       final orgName = p?.organizationName ?? "";
       final personName = p?.name ?? homeController.user?.name ?? "";
 
-      final displayName = orgName.isNotEmpty
-          ? orgName
-          : (personName.isNotEmpty ? personName : AppString.divineUser.tr);
+      final displayName = isOrg
+          ? (orgName.isNotEmpty ? orgName : (personName.isNotEmpty ? personName : AppString.divineUser.tr))
+          : (personName.isNotEmpty ? personName : (orgName.isNotEmpty ? orgName : AppString.divineUser.tr));
 
-      final displaySubName = (orgName.isNotEmpty && personName.isNotEmpty && orgName != personName)
+      final displaySubName = isOrg && (orgName.isNotEmpty && personName.isNotEmpty && orgName != personName)
           ? personName
           : "";
 
@@ -272,10 +284,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final profilePhoto = p?.profilePhoto ?? p?.logo ?? homeController.user?.profilePhoto ?? '';
 
       int totalDonate = homeController.homeData.value?.totalDonateAmount ?? 0;
-      if (totalDonate == 0 && homeController.donationHistory.isNotEmpty) {
-        totalDonate = homeController.donationHistory.fold<int>(0, (sum, item) => sum + (item.amount ?? 0));
-      }
+      // if (totalDonate == 0 && homeController.donationHistory.isNotEmpty) {
+      //   totalDonate = homeController.donationHistory.fold<int>(0, (sum, item) => sum + (item.amount ?? 0));
+      // }
       final String formattedTotalDonate = "₹ ${formatPrice(totalDonate)}";
+      print("Total donate amount ----: $totalDonate");
 
       return Container(
         padding: const EdgeInsets.all(16),
@@ -291,24 +304,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ClipOval(
                   child: profilePhoto.isNotEmpty
                       ? CachedNetworkImage(
+                          key: ValueKey(profilePhoto),
                           imageUrl: profilePhoto,
                           width: 56,
                           height: 56,
                           fit: BoxFit.cover,
                           placeholder: (c, u) => const ShimmerWidget(width: 56, height: 56, borderRadius: BorderRadius.all(Radius.circular(28))),
-                          errorWidget: (c, u, e) => Container(
-                            width: 56,
-                            height: 56,
-                            color: Colors.grey.shade200,
-                            child: const Icon(Icons.person, size: 32, color: Colors.grey),
-                          ),
+                          errorWidget: (c, u, e) => Image.asset(AppAssets.appLogo, width: 56, height: 56, fit: BoxFit.cover),
                         )
-                      : Container(
-                          width: 56,
-                          height: 56,
-                          color: Colors.grey.shade200,
-                          child: const Icon(Icons.person, size: 32, color: Colors.grey),
-                        ),
+                      : Image.asset(AppAssets.appLogo, width: 56, height: 56, fit: BoxFit.cover),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -350,12 +354,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     if (p?.role == "donor") {
-                      Get.toNamed(MyRouters.editProfileScreen);
+                      await Get.toNamed(MyRouters.editProfileScreen);
                     } else {
-                      Get.toNamed(MyRouters.ngoProfileDetailScreen);
+                      await Get.toNamed(MyRouters.ngoProfileDetailScreen);
                     }
+                    if (!mounted) return;
+                    profileController.fetchProfile(context, forceRefresh: true);
                   },
                   child: Container(
                     width: 36,

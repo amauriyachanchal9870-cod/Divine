@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "368884735018",
+    "project_id": "divine-foundation",
+    "storage_bucket": "divine-foundation.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:368884735018:android:2fb508a5ec546fa06e7753",
+        "android_client_info": {
+          "package_name": "com.example.divine_foundation"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3KpgBMgmAogUuL8GEcMr-hdkQGOwUVZk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

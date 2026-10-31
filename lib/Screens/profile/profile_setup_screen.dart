@@ -28,16 +28,44 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final AuthController authController = Get.put(AuthController());
   late TapGestureRecognizer _termsRecognizer;
   late TapGestureRecognizer _privacyRecognizer;
+  bool isGoogleSignIn = false;
 
   @override
   void initState() {
     super.initState();
+    _checkGoogleSignIn();
     _termsRecognizer = TapGestureRecognizer()..onTap = () {
       Get.toNamed(MyRouters.termsConditionScreen);
     };
     _privacyRecognizer = TapGestureRecognizer()..onTap = () {
       Get.toNamed(MyRouters.privacyPolicyScreen);
     };
+  }
+
+  Future<void> _checkGoogleSignIn() async {
+    bool isGoogle = false;
+    String gEmail = '';
+    final args = Get.arguments;
+    if (args != null && args is Map) {
+      if (args['isGoogleSignIn'] == true) isGoogle = true;
+      if (args['googleEmail'] != null && args['googleEmail'].toString().trim().isNotEmpty) {
+        gEmail = args['googleEmail'].toString().trim();
+      }
+    }
+    if (!isGoogle) {
+      isGoogle = await authController.isGoogleUser();
+    }
+    if (gEmail.isEmpty && isGoogle) {
+      gEmail = await authController.getGoogleEmail();
+    }
+    if (isGoogle && mounted) {
+      setState(() {
+        isGoogleSignIn = true;
+        if (gEmail.isNotEmpty) {
+          emailController.text = gEmail;
+        }
+      });
+    }
   }
 
   @override
@@ -159,6 +187,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 8),
               CommonTextField(
                 controller: emailController,
+                readOnly: isGoogleSignIn,
                 hintText: 'Enter your email',
                 prefix: Icon(Icons.email_outlined, color: AppTheme.textGrey400),
                 useBorder: true,

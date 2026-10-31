@@ -55,6 +55,7 @@ class SocialDonor {
   double? walletBalance;
   String? name;
   String? email;
+  String? role;
 
   SocialDonor({
     this.id,
@@ -63,16 +64,18 @@ class SocialDonor {
     this.walletBalance,
     this.name,
     this.email,
+    this.role,
   });
 
   factory SocialDonor.fromJson(Map<String, dynamic> json) {
     return SocialDonor(
-      id: json['_id'],
+      id: json['_id'] ?? json['id'],
       phone: json['phone'],
-      profilePhoto: json['profilePhoto'],
+      profilePhoto: json['profilePhoto'] ?? json['logo'],
       walletBalance: (json['walletBalance'] as num?)?.toDouble(),
-      name: json['name'],
+      name: json['name'] ?? json['organizationName'],
       email: json['email'],
+      role: (json['role'] ?? json['userRole'] ?? json['type'] ?? json['userType'])?.toString(),
     );
   }
 }
@@ -94,6 +97,7 @@ class SocialNgo {
   List<String>? kycDocs;
   List<SocialCampaign>? campaigns;
   List<SocialActivityGallery>? activityGallery;
+  String? role;
 
   SocialNgo({
     this.id,
@@ -112,36 +116,62 @@ class SocialNgo {
     this.kycDocs,
     this.campaigns,
     this.activityGallery,
+    this.role,
   });
 
   factory SocialNgo.fromJson(Map<String, dynamic> json) {
+    Map<String, dynamic> data = json;
+    if (json.containsKey('ngo') && json['ngo'] is Map<String, dynamic>) {
+      data = json['ngo'];
+    } else if (json.containsKey('follower') && json['follower'] is Map<String, dynamic>) {
+      data = json['follower'];
+    } else if (json.containsKey('followerId') && json['followerId'] is Map<String, dynamic>) {
+      data = json['followerId'];
+    }
+
+    final String? resolvedNgoId = (data['ngoId'] ??
+        json['ngoId'] ??
+        data['ngo_id'] ??
+        json['ngo_id'] ??
+        data['organizationId'] ??
+        json['organizationId'] ??
+        (data['ngo'] is Map ? data['ngo']['_id'] : null) ??
+        (json['ngo'] is Map ? json['ngo']['_id'] : null) ??
+        data['_id'] ??
+        data['id'] ??
+        json['_id'] ??
+        json['id'])?.toString();
+
+    final String? directId = (data['_id'] ?? data['id'] ?? json['_id'] ?? json['id'])?.toString();
+
     return SocialNgo(
-      id: json['_id'],
-      ngoId: json['ngoId'],
-      name: json['name'],
-      logo: json['logo'],
-      rating: (json['rating'] as num?)?.toDouble(),
-      registrationNumber: json['registrationNumber'],
-      contactPerson: json['contactPerson'],
-      email: json['email'],
-      phone: json['phone'],
-      about: json['about'],
-      status: json['status'],
-      activityProof: json['activityProof'] != null
-          ? List<String>.from(json['activityProof'])
+      id: resolvedNgoId ?? directId,
+      ngoId: resolvedNgoId ?? directId,
+      name: data['name'] ?? json['name'] ?? data['organizationName'] ?? json['organizationName'],
+      logo: data['logo'] ?? json['logo'] ?? data['profilePhoto'] ?? json['profilePhoto'],
+      rating: ((data['rating'] ?? json['rating']) as num?)?.toDouble(),
+      registrationNumber: data['registrationNumber'] ?? json['registrationNumber'],
+      contactPerson: data['contactPerson'] ?? json['contactPerson'],
+      email: data['email'] ?? json['email'],
+      phone: data['phone'] ?? json['phone'],
+      about: data['about'] ?? json['about'] ?? data['description'] ?? json['description'],
+      status: data['status'] ?? json['status'],
+      activityProof: (data['activityProof'] ?? json['activityProof']) != null
+          ? List<String>.from(data['activityProof'] ?? json['activityProof'])
           : [],
-      verifiedCampaignsCount: json['verifiedCampaignsCount'] is int
-          ? json['verifiedCampaignsCount']
-          : int.tryParse(json['verifiedCampaignsCount']?.toString() ?? '0') ?? 0,
-      kycDocs: json['kycDocs'] != null
-          ? List<String>.from(json['kycDocs'])
+      verifiedCampaignsCount: (data['verifiedCampaignsCount'] ?? json['verifiedCampaignsCount']) is int
+          ? (data['verifiedCampaignsCount'] ?? json['verifiedCampaignsCount'])
+          : int.tryParse((data['verifiedCampaignsCount'] ?? json['verifiedCampaignsCount'])?.toString() ?? '0') ?? 0,
+      kycDocs: (data['kycDocs'] ?? json['kycDocs']) != null
+          ? List<String>.from(data['kycDocs'] ?? json['kycDocs'])
           : [],
-      campaigns: json['campaigns'] != null
-          ? (json['campaigns'] as List).map((e) => SocialCampaign.fromJson(e)).toList()
+      campaigns: (data['campaigns'] ?? json['campaigns']) != null
+          ? ((data['campaigns'] ?? json['campaigns']) as List).map((e) => SocialCampaign.fromJson(e)).toList()
           : [],
-      activityGallery: json['activityGallery'] != null
-          ? (json['activityGallery'] as List).map((e) => SocialActivityGallery.fromJson(e)).toList()
+      activityGallery: (data['activityGallery'] ?? json['activityGallery']) != null
+          ? ((data['activityGallery'] ?? json['activityGallery']) as List).map((e) => SocialActivityGallery.fromJson(e)).toList()
           : [],
+      role: (data['role'] ?? json['role'] ?? data['userRole'] ?? json['userRole'] ?? data['type'] ?? json['type'] ?? data['userType'] ?? json['userType'])?.toString(),
     );
   }
 }

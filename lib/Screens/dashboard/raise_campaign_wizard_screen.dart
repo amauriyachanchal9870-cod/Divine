@@ -1,21 +1,29 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:developer';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:get/get.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
-import 'package:http/http.dart' as http;
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Routes/my_routes.dart';
 import '../../Repo/common_repo.dart';
 import '../../Utilities/api_constant.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../Model/campaign_details_model.dart';
 import '../../Utilities/helper.dart';
+import '../../Controller/profile_controller.dart';
 import '../../Controller/home_controller.dart';
+import '../../Controller/active_campaigns_controller.dart';
+import '../../Controller/my_campaigns_controller.dart';
 import 'main_navigation_screen.dart';
 
 class RaiseCampaignWizardScreen extends StatefulWidget {
@@ -51,14 +59,159 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   final ValueNotifier<int> _storyLengthNotifier = ValueNotifier<int>(0);
   final FocusNode _storyFocusNode = FocusNode();
 
+  // Edit Mode state
+  bool _isEdit = false;
+  String? _editCampaignId;
+  bool _isLoadingDetails = false;
+  String? _existingMainImageUrl;
+  List<String> _existingSmallImageUrls = [];
+  List<String> _existingIdentityDocUrls = [];
+  List<String> _existingMedicalDocUrls = [];
+  String? _existingStatus;
+  String? _existingVideo;
+
   @override
   void initState() {
     super.initState();
+    final args = Get.arguments;
+    if (args != null && args is Map) {
+      _isEdit = args['isEdit'] == true;
+      _editCampaignId = args['campaignId']?.toString();
+    }
+
     _fetchCampaignCategories();
     _storyController.addListener(() {
       int length = _storyController.document.toPlainText().length - 1;
       _storyLengthNotifier.value = length > 0 ? length : 0;
     });
+
+    if (_isEdit && _editCampaignId != null && _editCampaignId!.isNotEmpty) {
+      _fetchCampaignDetailsForEdit(_editCampaignId!);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final profileCtrl = Get.isRegistered<ProfileController>() ? Get.find<ProfileController>() : Get.put(ProfileController());
+      final userRole = (profileCtrl.profileData.value?.role ?? '').toLowerCase();
+      if (userRole == 'corporate') {
+        showSnackBar("Corporate users cannot raise campaigns", false);
+        if (Navigator.canPop(context)) {
+          Get.back();
+        } else {
+          mainNavKey.currentState?.changeTab(0);
+        }
+      }
+    });
+  }
+
+  Future<void> _fetchCampaignDetailsForEdit(String id) async {
+    setState(() {
+      _isLoadingDetails = true;
+    });
+    try {
+      final response = await Repositories().getApi(
+        url: ApiUrls.getCampaignDetailsUrl(id),
+        showResponse: true,
+      );
+      if (response != null) {
+        final jsonResponse = jsonDecode(response);
+        final model = CampaignDetailsModel.fromJson(jsonResponse);
+        final data = model.data;
+        if (data != null && mounted) {
+          setState(() {
+            _titleController.text = data.title ?? '';
+            _selectedCategory = data.category;
+
+            // Extract numeric target amount
+            final rawGoal = data.goal ?? '';
+            final goalDigits = rawGoal.replaceAll(RegExp(r'[^0-9]'), '');
+            _amountController.text = goalDigits.isNotEmpty ? goalDigits : rawGoal;
+
+            // End date
+            if (data.endDate != null && data.endDate!.isNotEmpty) {
+              final parsedDate = DateTime.tryParse(data.endDate!);
+              if (parsedDate != null) {
+                _selectedDateTime = parsedDate;
+                _dateController.text = "${parsedDate.day.toString().padLeft(2, '0')}/${parsedDate.month.toString().padLeft(2, '0')}/${parsedDate.year}";
+              }
+            }
+
+            // Description / Story
+            final desc = data.description ?? '';
+            if (desc.isNotEmpty) {
+              _storyController.document = quill.Document()..insert(0, desc);
+              _storyLengthNotifier.value = _storyController.document.toPlainText().length - 1;
+            }
+
+            // Cover and additional images
+            _existingMainImageUrl = data.imageUrl ?? (data.images != null && data.images!.isNotEmpty ? data.images!.first : null);
+            if (data.images != null && data.images!.isNotEmpty) {
+              _existingSmallImageUrls = data.images!.where((img) => img != _existingMainImageUrl).toList();
+            }
+
+            // Documents
+            if (data.verificationDocs != null && data.verificationDocs!.isNotEmpty) {
+              _existingIdentityDocUrls = List<String>.from(data.verificationDocs!);
+              if (data.documents != null && data.documents!.isNotEmpty) {
+                _existingMedicalDocUrls = data.documents!
+                    .where((doc) => !_existingIdentityDocUrls.contains(doc))
+                    .toList();
+              } else {
+                _existingMedicalDocUrls = [];
+              }
+            } else if (data.documents != null && data.documents!.isNotEmpty) {
+              final bool hasExplicitTags = data.documents!.any(
+                (doc) => doc.contains('#type=identity') || doc.contains('#type=medical'),
+              );
+
+              if (hasExplicitTags) {
+                _existingIdentityDocUrls = data.documents!
+                    .where((doc) => doc.contains('#type=identity'))
+                    .toList();
+                _existingMedicalDocUrls = data.documents!
+                    .where((doc) => doc.contains('#type=medical'))
+                    .toList();
+                for (var doc in data.documents!) {
+                  if (!_existingIdentityDocUrls.contains(doc) && !_existingMedicalDocUrls.contains(doc)) {
+                    _existingMedicalDocUrls.add(doc);
+                  }
+                }
+              } else {
+                // Backward compatibility: previous campaigns without tags saved identity proof as first document
+                _existingIdentityDocUrls = [data.documents!.first];
+                if (data.documents!.length > 1) {
+                  _existingMedicalDocUrls = data.documents!.sublist(1);
+                } else {
+                  _existingMedicalDocUrls = [];
+                }
+              }
+            } else {
+              _existingIdentityDocUrls = [];
+              _existingMedicalDocUrls = [];
+            }
+
+            // Bank details
+            if (data.bankDetails != null) {
+              _holderNameController.text = data.bankDetails?.holderName ?? '';
+              _bankNameController.text = data.bankDetails?.bankName ?? '';
+              _accountNumberController.text = data.bankDetails?.accountNumber ?? '';
+              _ifscCodeController.text = data.bankDetails?.ifscCode ?? '';
+            }
+
+            _existingStatus = data.status ?? 'Live';
+            _existingVideo = data.video ?? 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching campaign details for edit: $e");
+      showSnackBar("Failed to load campaign details: $e", false);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingDetails = false;
+        });
+      }
+    }
   }
 
   Future<void> _fetchCampaignCategories() async {
@@ -114,6 +267,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   }
 
   void _clearFields() {
+    if (!mounted) return;
     setState(() {
       _titleController.clear();
       _amountController.clear();
@@ -130,10 +284,18 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
       }
       _identityDocs.clear();
       _medicalDocs.clear();
+      _existingMainImageUrl = null;
+      _existingSmallImageUrls.clear();
+      _existingIdentityDocUrls.clear();
+      _existingMedicalDocUrls.clear();
+      _isEdit = false;
+      _editCampaignId = null;
       _currentStep = 0;
       _storyController.document = quill.Document();
     });
-    _pageController.jumpToPage(0);
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(0);
+    }
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -224,7 +386,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                   Navigator.of(context).pop();
                   FilePickerResult? result = await FilePicker.platform.pickFiles(
                     type: FileType.custom,
-                    allowedExtensions: ['pdf'],
+                    allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
                   );
                   if (result != null && result.files.single.path != null) {
                     onFilePicked(File(result.files.single.path!));
@@ -259,9 +421,8 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
         showSnackBar("Please enter a target amount.", false);
         return;
       }
-      final double targetAmt = double.tryParse(_amountController.text.trim()) ?? 0;
-      if (targetAmt > 100000000) {
-        showSnackBar("Target amount cannot be more than 100000000", false);
+      if (_amountController.text.trim().length > 10) {
+        showSnackBar("Target amount cannot be more than 10 digits", false);
         return;
       }
       if (_dateController.text.trim().isEmpty) {
@@ -273,16 +434,16 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
         return;
       }
     } else if (_currentStep == 1) {
-      if (_mainImage == null) {
+      if (_mainImage == null && (_existingMainImageUrl == null || _existingMainImageUrl!.isEmpty)) {
         showSnackBar("Please upload a cover image.", false);
         return;
       }
     } else if (_currentStep == 2) {
-      if (_identityDocs.isEmpty) {
+      if (!_isEdit && _identityDocs.isEmpty && _existingIdentityDocUrls.isEmpty) {
         showSnackBar("Please upload identity proof.", false);
         return;
       }
-      if (_medicalDocs.isEmpty) {
+      if (_medicalDocs.isEmpty && _existingMedicalDocUrls.isEmpty) {
         showSnackBar("Please upload medical documents.", false);
         return;
       }
@@ -295,6 +456,48 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingDetails) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 18),
+            onPressed: () => Get.back(),
+          ),
+          title: Text("Edit Campaign", style: AppFonts.titleStyle.copyWith(fontSize: 18)),
+          centerTitle: false,
+        ),
+        body: Center(
+          child: LoadingAnimationWidget.threeRotatingDots(
+            color: AppTheme.primaryDeepBlue,
+            size: 40,
+          ),
+        ),
+      );
+    }
+
+    final profileCtrl = Get.isRegistered<ProfileController>() ? Get.find<ProfileController>() : Get.put(ProfileController());
+    final userRole = (profileCtrl.profileData.value?.role ?? '').toLowerCase();
+    if (userRole == 'corporate') {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: Text(_isEdit ? "Edit Campaign" : AppString.raiseACampaign.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
+          centerTitle: false,
+        ),
+        body: Center(
+          child: Text(
+            "Corporate users cannot raise campaigns.",
+            style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -308,8 +511,13 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                   _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                 },
               )
-            : null,
-        title: Text(AppString.raiseACampaign.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
+            : (_isEdit
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 18),
+                    onPressed: () => Get.back(),
+                  )
+                : null),
+        title: Text(_isEdit ? "Edit Campaign" : AppString.raiseACampaign.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
         centerTitle: false,
       ),
       body: Column(
@@ -462,7 +670,17 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
             },
           ),
           const SizedBox(height: 16),
-          _buildTextField(AppString.targetAmount.tr, AppString.enterAmount.tr, prefixIcon: const Icon(Icons.currency_rupee, size: 16, color: Colors.grey), controller: _amountController),
+          _buildTextField(
+            AppString.targetAmount.tr,
+            AppString.enterAmount.tr,
+            prefixIcon: const Icon(Icons.currency_rupee, size: 16, color: Colors.grey),
+            controller: _amountController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(10),
+            ],
+          ),
           const SizedBox(height: 16),
           _buildTextField(AppString.endDate.tr, AppString.selectDate.tr, suffixIcon: const Icon(Icons.calendar_today, size: 16, color: Colors.grey), controller: _dateController, readOnly: true, onTap: () => _selectDate(context)),
           const SizedBox(height: 24),
@@ -630,14 +848,41 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                               borderRadius: BorderRadius.circular(12),
                               child: Image.file(_mainImage!, fit: BoxFit.cover),
                             )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.add, color: Colors.grey, size: 28),
-                                const SizedBox(height: 8),
-                                Text(AppString.mainPhoto.tr, style: AppFonts.regularText.copyWith(fontSize: 12, color: Colors.grey)),
-                              ],
-                            ),
+                          : (_existingMainImageUrl != null && _existingMainImageUrl!.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      CachedNetworkImage(
+                                        imageUrl: _existingMainImageUrl!,
+                                        fit: BoxFit.cover,
+                                        placeholder: (ctx, url) => const Center(child: CircularProgressIndicator()),
+                                        errorWidget: (ctx, url, err) => Image.asset(AppAssets.campaignImage, fit: BoxFit.cover),
+                                      ),
+                                      Positioned(
+                                        bottom: 8,
+                                        right: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black54,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: const Text("Change", style: TextStyle(color: Colors.white, fontSize: 11)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.add, color: Colors.grey, size: 28),
+                                    const SizedBox(height: 8),
+                                    Text(AppString.mainPhoto.tr, style: AppFonts.regularText.copyWith(fontSize: 12, color: Colors.grey)),
+                                  ],
+                                )),
                     ),
                   ),
                 ),
@@ -673,7 +918,8 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   }
 
   Widget _buildSmallImageSlot(int index) {
-    bool hasImage = _smallImages[index] != null;
+    bool hasFile = _smallImages[index] != null;
+    bool hasExisting = index < _existingSmallImageUrls.length && _existingSmallImageUrls[index].isNotEmpty;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _pickSmallImage(index),
@@ -687,14 +933,41 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
         child: SizedBox(
           height: 98,
           width: double.infinity,
-          child: hasImage
+          child: hasFile
               ? ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.file(_smallImages[index]!, fit: BoxFit.cover),
                 )
-              : const Center(
-                  child: Icon(Icons.add, color: Colors.grey, size: 24),
-                ),
+              : (hasExisting
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CachedNetworkImage(
+                            imageUrl: _existingSmallImageUrls[index],
+                            fit: BoxFit.cover,
+                            placeholder: (ctx, url) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            errorWidget: (ctx, url, err) => Image.asset(AppAssets.campaignImage, fit: BoxFit.cover),
+                          ),
+                          Positioned(
+                            bottom: 4,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.edit, size: 10, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(Icons.add, color: Colors.grey, size: 24),
+                    )),
         ),
       ),
     );
@@ -715,7 +988,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildDocumentUploadBox(_identityDocs, _pickIdentityDoc),
+          _buildDocumentUploadBox(_identityDocs, _existingIdentityDocUrls, _pickIdentityDoc),
           const SizedBox(height: 24),
           Row(
             children: [
@@ -724,7 +997,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildDocumentUploadBox(_medicalDocs, _pickMedicalDoc),
+          _buildDocumentUploadBox(_medicalDocs, _existingMedicalDocUrls, _pickMedicalDoc),
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(12),
@@ -753,10 +1026,33 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
     );
   }
 
-  Widget _buildDocumentUploadBox(List<File> docs, VoidCallback onPick) {
+  String _getDocumentDisplayName(String url) {
+    if (url.isEmpty) return '';
+    try {
+      if (url.contains('name=')) {
+        final fragmentOrQuery = url.contains('#')
+            ? url.split('#').last
+            : (url.contains('?') ? url.split('?').last : '');
+        final params = Uri.splitQueryString(fragmentOrQuery);
+        if (params.containsKey('name') && params['name']!.isNotEmpty) {
+          final nameVal = params['name']!;
+          try {
+            return Uri.decodeComponent(nameVal);
+          } catch (_) {
+            return nameVal;
+          }
+        }
+      }
+    } catch (_) {}
+    final rawName = url.split('/').last;
+    return rawName.split('#').first.split('?').first;
+  }
+
+  Widget _buildDocumentUploadBox(List<File> docs, List<String> existingUrls, VoidCallback onPick) {
+    final totalCount = docs.length + existingUrls.length;
     return Column(
       children: [
-        if (docs.isEmpty)
+        if (totalCount == 0)
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onPick,
@@ -786,43 +1082,87 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
               ),
             ),
           )
-        else
-          Column(
-            children: List.generate(docs.length, (index) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppTheme.fieldBorderColor),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.insert_drive_file, color: Colors.blue, size: 24),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        docs[index].path.split('/').last,
-                        style: AppFonts.regularText.copyWith(fontSize: 13, color: Colors.black87),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+        else ...[
+          ...List.generate(existingUrls.length, (index) {
+            final fileName = _getDocumentDisplayName(existingUrls[index]);
+            final bool isPdf = fileName.toLowerCase().endsWith('.pdf');
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppTheme.fieldBorderColor),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isPdf ? Icons.picture_as_pdf : Icons.description_outlined,
+                    color: isPdf ? Colors.red : Colors.blue,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      fileName,
+                      style: AppFonts.regularText.copyWith(fontSize: 13, color: Colors.black87),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          docs.removeAt(index);
-                        });
-                      },
-                      child: const Icon(Icons.close, color: Colors.grey, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        existingUrls.removeAt(index);
+                      });
+                    },
+                    child: const Icon(Icons.close, color: Colors.grey, size: 20),
+                  ),
+                ],
+              ),
+            );
+          }),
+          ...List.generate(docs.length, (index) {
+            final fileName = docs[index].path.split(RegExp(r'[/\\]')).last;
+            final bool isPdf = fileName.toLowerCase().endsWith('.pdf');
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppTheme.fieldBorderColor),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isPdf ? Icons.picture_as_pdf : Icons.description_outlined,
+                    color: isPdf ? Colors.red : Colors.blue,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      fileName,
+                      style: AppFonts.regularText.copyWith(fontSize: 13, color: Colors.black87),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
-              );
-            }),
-          ),
-        if (docs.isNotEmpty)
+                  ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        docs.removeAt(index);
+                      });
+                    },
+                    child: const Icon(Icons.close, color: Colors.grey, size: 20),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+        if (totalCount > 0)
           SizedBox(
             width: double.infinity,
             height: 40,
@@ -840,22 +1180,35 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   }
 
   Future<String?> _uploadFileToCatbox(File file) async {
+    if (!file.existsSync()) return null;
     try {
-      final request = http.MultipartRequest('POST', Uri.parse('https://catbox.moe/user/api.php'));
-      request.fields['reqtype'] = 'fileupload';
-      request.files.add(await http.MultipartFile.fromPath('fileToUpload', file.path));
-
-      final response = await request.send();
-      if (response.statusCode == 200) {
-        final responseData = await response.stream.bytesToString();
-        final url = responseData.trim();
-        debugPrint("Uploaded file URL: $url");
-        return url;
+      final client = http.Client();
+      try {
+        final request = http.MultipartRequest('POST', Uri.parse('https://catbox.moe/user/api.php'));
+        request.fields['reqtype'] = 'fileupload';
+        request.files.add(await http.MultipartFile.fromPath('fileToUpload', file.path));
+        final streamedResponse = await client.send(request).timeout(const Duration(seconds: 45));
+        final responseData = await streamedResponse.stream.bytesToString();
+        if (streamedResponse.statusCode == 200) {
+          final url = responseData.trim();
+          if (url.startsWith('https://files.catbox.moe/')) {
+            log("✅ [_uploadFileToCatbox] Upload SUCCESS to Catbox: $url");
+            return url;
+          }
+        }
+      } finally {
+        client.close();
       }
     } catch (e) {
-      debugPrint("Error uploading file to Catbox: $e");
+      log("⚠️ [_uploadFileToCatbox] Direct Catbox upload exception: $e. Falling back to ProfileController.uploadFile...");
     }
-    return null;
+
+    // Delegate to ProfileController.uploadFile which uses ImgBB (works in India)
+    // and falls back to Catbox with proper timeouts and error logging.
+    final profileController = Get.isRegistered<ProfileController>()
+        ? Get.find<ProfileController>()
+        : Get.put(ProfileController());
+    return await profileController.uploadFile(file);
   }
 
   Future<void> _submitCampaign() async {
@@ -874,6 +1227,14 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
     if (_ifscCodeController.text.trim().isEmpty) {
       showSnackBar("Please enter IFSC code.", false);
       return;
+    }
+
+    bool dialogDismissed = false;
+    void dismissProgressDialog() {
+      if (!dialogDismissed && mounted) {
+        dialogDismissed = true;
+        Navigator.of(context, rootNavigator: true).pop();
+      }
     }
 
     showDialog(
@@ -903,14 +1264,31 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
 
     try {
       List<String> imageUrls = [];
-      if (_mainImage != null) {
+      if (_mainImage != null && _mainImage!.existsSync()) {
+        log("Uploading main cover image file: ${_mainImage!.path}");
         final mainUrl = await _uploadFileToCatbox(_mainImage!);
-        if (mainUrl != null) imageUrls.add(mainUrl);
+        if (mainUrl != null && mainUrl.trim().isNotEmpty) {
+          imageUrls.add(mainUrl.trim());
+        }
+      } else if (_isEdit && _existingMainImageUrl != null && _existingMainImageUrl!.isNotEmpty) {
+        imageUrls.add(_existingMainImageUrl!.trim());
       }
-      for (var f in _smallImages) {
-        if (f != null) {
+
+      for (int i = 0; i < _smallImages.length; i++) {
+        var f = _smallImages[i];
+        if (f != null && f.existsSync()) {
+          log("Uploading small image slot $i: ${f.path}");
           final url = await _uploadFileToCatbox(f);
-          if (url != null) imageUrls.add(url);
+          if (url != null && url.trim().isNotEmpty) {
+            imageUrls.add(url.trim());
+          }
+        }
+      }
+      if (_isEdit && _existingSmallImageUrls.isNotEmpty) {
+        for (var ext in _existingSmallImageUrls) {
+          if (ext.trim().isNotEmpty && !imageUrls.contains(ext.trim())) {
+            imageUrls.add(ext.trim());
+          }
         }
       }
 
@@ -918,26 +1296,166 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
         imageUrls.add("https://images.unsplash.com/photo-148852178991-ed7bbaeae773?auto=format&fit=crop&q=80&w=600");
       }
 
-      List<String> documentUrls = [];
+      log("--------------------------------------------------");
+      log("📸 CAMPAIGN IMAGES TO BE SENT IN PAYLOAD: $imageUrls");
+      log("--------------------------------------------------");
+      debugPrint("📸 CAMPAIGN IMAGES TO BE SENT IN PAYLOAD: $imageUrls");
+
+      List<String> identityUrls = [];
+      if (_isEdit && _existingIdentityDocUrls.isNotEmpty) {
+        for (var u in _existingIdentityDocUrls) {
+          final clean = u.split('#').first.trim();
+          if (clean.isNotEmpty) {
+            final name = _getDocumentDisplayName(u);
+            final tagged = name.isNotEmpty
+                ? '$clean#type=identity&name=${Uri.encodeComponent(name)}'
+                : '$clean#type=identity';
+            if (!identityUrls.contains(tagged)) {
+              identityUrls.add(tagged);
+            }
+          }
+        }
+      }
       for (var f in _identityDocs) {
         final url = await _uploadFileToCatbox(f);
-        if (url != null) documentUrls.add(url);
+        if (url != null && url.trim().isNotEmpty) {
+          final clean = url.trim().split('#').first.trim();
+          if (clean.isNotEmpty) {
+            final name = f.path.split(RegExp(r'[/\\]')).last;
+            final tagged = name.isNotEmpty
+                ? '$clean#type=identity&name=${Uri.encodeComponent(name)}'
+                : '$clean#type=identity';
+            if (!identityUrls.contains(tagged)) {
+              identityUrls.add(tagged);
+            }
+          }
+        }
+      }
+
+      List<String> medicalUrls = [];
+      if (_isEdit && _existingMedicalDocUrls.isNotEmpty) {
+        for (var u in _existingMedicalDocUrls) {
+          final clean = u.split('#').first.trim();
+          if (clean.isNotEmpty) {
+            final name = _getDocumentDisplayName(u);
+            final tagged = name.isNotEmpty
+                ? '$clean#type=medical&name=${Uri.encodeComponent(name)}'
+                : '$clean#type=medical';
+            if (!medicalUrls.contains(tagged)) {
+              medicalUrls.add(tagged);
+            }
+          }
+        }
       }
       for (var f in _medicalDocs) {
         final url = await _uploadFileToCatbox(f);
-        if (url != null) documentUrls.add(url);
+        if (url != null && url.trim().isNotEmpty) {
+          final clean = url.trim().split('#').first.trim();
+          if (clean.isNotEmpty) {
+            final name = f.path.split(RegExp(r'[/\\]')).last;
+            final tagged = name.isNotEmpty
+                ? '$clean#type=medical&name=${Uri.encodeComponent(name)}'
+                : '$clean#type=medical';
+            if (!medicalUrls.contains(tagged)) {
+              medicalUrls.add(tagged);
+            }
+          }
+        }
       }
 
+      List<String> documentUrls = [...identityUrls, ...medicalUrls];
       if (documentUrls.isEmpty) {
-        documentUrls.add("https://s3.amazonaws.com/divine-docs/ngo_registration_pratham.pdf");
+        documentUrls.add("https://s3.amazonaws.com/divine-docs/ngo_registration_pratham.pdf#type=medical");
       }
 
-      if (mounted) Navigator.of(context).pop();
+      log("📄 CAMPAIGN IDENTITY DOCUMENTS TO BE SENT: $identityUrls");
+      log("📄 CAMPAIGN MEDICAL DOCUMENTS TO BE SENT: $medicalUrls");
+      log("📄 CAMPAIGN ALL DOCUMENTS TO BE SENT IN PAYLOAD: $documentUrls");
+      debugPrint("📄 CAMPAIGN IDENTITY DOCUMENTS TO BE SENT: $identityUrls");
+      debugPrint("📄 CAMPAIGN MEDICAL DOCUMENTS TO BE SENT: $medicalUrls");
+      debugPrint("📄 CAMPAIGN ALL DOCUMENTS TO BE SENT IN PAYLOAD: $documentUrls");
+
+      dismissProgressDialog();
 
       final String endDateStr = _selectedDateTime != null 
           ? _selectedDateTime!.toUtc().toIso8601String() 
           : DateTime.now().add(const Duration(days: 30)).toUtc().toIso8601String();
 
+      // EDIT CAMPAIGN FLOW (PUT)
+      if (_isEdit && _editCampaignId != null && _editCampaignId!.isNotEmpty) {
+        final payload = {
+          "title": _titleController.text.trim(),
+          "category": _selectedCategory ?? "Medical",
+          "description": _storyController.document.toPlainText().trim(),
+          "goal": double.tryParse(_amountController.text.trim()) ?? 75000,
+          "imageUrl": imageUrls.isNotEmpty ? imageUrls.first : (_existingMainImageUrl ?? "https://files.catbox.moe/q4i0t0.jpg"),
+          "images": imageUrls,
+          "oneTimeOrMonthly": "One-Time",
+          "endDate": endDateStr,
+          "status": _existingStatus ?? "Live",
+          "video": _existingVideo ?? "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          "documents": documentUrls,
+          "verificationDocs": identityUrls,
+          "identityDocs": identityUrls,
+          "medicalDocs": medicalUrls,
+          "bankDetails": {
+            "accountNumber": _accountNumberController.text.trim(),
+            "ifscCode": _ifscCodeController.text.trim(),
+            "bankName": _bankNameController.text.trim(),
+            "holderName": _holderNameController.text.trim(),
+          }
+        };
+
+        if (!mounted) return;
+        final response = await Repositories().putApi(
+          context: context,
+          url: ApiUrls.getCampaignDetailsUrl(_editCampaignId!),
+          mapData: payload,
+          showResponse: true,
+        );
+
+        dismissProgressDialog();
+
+        if (response != null) {
+          final Map<String, dynamic> jsonResponse = jsonDecode(response);
+          if (jsonResponse['status'] == true ||
+              jsonResponse['status'] == 'Live' ||
+              jsonResponse['status'] == 'success' ||
+              jsonResponse['data'] != null) {
+            _clearFields();
+            if (Get.isRegistered<MyCampaignsController>()) {
+              Get.find<MyCampaignsController>().fetchMyCampaigns();
+            }
+            if (Get.isRegistered<HomeController>()) {
+              Get.find<HomeController>().fetchHomeData(forceRefresh: true);
+            }
+            if (Get.isRegistered<ActiveCampaignsController>()) {
+              Get.find<ActiveCampaignsController>().fetchActiveCampaigns();
+            }
+
+            bool poppedToMyCampaigns = false;
+            Get.until((route) {
+              if (route.settings.name == MyRouters.myCampaignsScreen) {
+                poppedToMyCampaigns = true;
+                return true;
+              }
+              return route.isFirst;
+            });
+            if (!poppedToMyCampaigns) {
+              Get.offNamed(MyRouters.myCampaignsScreen);
+            }
+
+            showSnackBar(jsonResponse['message'] ?? "Campaign updated successfully", true);
+          } else {
+            showSnackBar(jsonResponse['message'] ?? "Failed to update campaign.", false);
+          }
+        } else {
+          showSnackBar("No response from server.", false);
+        }
+        return;
+      }
+
+      // RAISE CAMPAIGN FLOW (POST)
       final payload = {
         "title": _titleController.text.trim(),
         "category": _selectedCategory ?? "Education Aid",
@@ -948,6 +1466,10 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
         "images": imageUrls,
         "video": "https://www.w3schools.com/html/mov_bbb.mp4",
         "documents": documentUrls,
+        "verificationDocs": identityUrls,
+        "identityDocs": identityUrls,
+        "medicalDocs": medicalUrls,
+        "is_verified": false,
         "bankDetails": {
           "holderName": _holderNameController.text.trim(),
           "accountNumber": _accountNumberController.text.trim(),
@@ -964,16 +1486,24 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
         showResponse: true,
       );
 
+      dismissProgressDialog();
+
       if (response != null) {
         final Map<String, dynamic> jsonResponse = jsonDecode(response);
-        if (jsonResponse['status'] == true) {
-          showSnackBar("Campaign created successfully!", true);
-          if (Get.isRegistered<HomeController>()) {
-            Get.find<HomeController>().fetchHomeData();
-          }
+        if (jsonResponse['status'] == true || jsonResponse['message'] == 'Campaign submitted for review successfully. It will be published upon admin approval.') {
           _clearFields();
-          mainNavKey.currentState?.changeTab(0);
-          Get.until((route) => route.settings.name == MyRouters.mainNav || route.isFirst);
+
+          if (Get.isRegistered<HomeController>()) {
+            Get.find<HomeController>().fetchHomeData(forceRefresh: true);
+          }
+          if (Get.isRegistered<ActiveCampaignsController>()) {
+            Get.find<ActiveCampaignsController>().fetchActiveCampaigns();
+          }
+          if (Get.isRegistered<MyCampaignsController>()) {
+            Get.find<MyCampaignsController>().fetchMyCampaigns();
+          }
+
+          Get.offAllNamed(MyRouters.campaignVerificationScreen);
         } else {
           showSnackBar(jsonResponse['message'] ?? "Failed to create campaign.", false);
         }
@@ -981,7 +1511,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
         showSnackBar("No response from server.", false);
       }
     } catch (e) {
-      if (mounted) Navigator.of(context).pop();
+      dismissProgressDialog();
       showSnackBar("An unexpected error occurred: ${e.toString()}", false);
     }
   }
@@ -1025,9 +1555,8 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                       showSnackBar("Please enter a target amount.", false);
                       return;
                     }
-                    final double targetAmtSubmit = double.tryParse(_amountController.text.trim()) ?? 0;
-                    if (targetAmtSubmit > 100000000) {
-                      showSnackBar("Target amount cannot be more than 100000000", false);
+                    if (_amountController.text.trim().length > 10) {
+                      showSnackBar("Target amount cannot be more than 10 digits", false);
                       return;
                     }
                     if (_dateController.text.trim().isEmpty) {
@@ -1038,15 +1567,15 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                       showSnackBar("Please write a campaign story.", false);
                       return;
                     }
-                    if (_mainImage == null) {
+                    if (_mainImage == null && (_existingMainImageUrl == null || _existingMainImageUrl!.isEmpty)) {
                       showSnackBar("Please upload a cover image.", false);
                       return;
                     }
-                    if (_identityDocs.isEmpty) {
+                    if (!_isEdit && _identityDocs.isEmpty && _existingIdentityDocUrls.isEmpty) {
                       showSnackBar("Please upload identity proof.", false);
                       return;
                     }
-                    if (_medicalDocs.isEmpty) {
+                    if (_medicalDocs.isEmpty && _existingMedicalDocUrls.isEmpty) {
                       showSnackBar("Please upload medical documents.", false);
                       return;
                     }
@@ -1079,6 +1608,12 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                         "smallImages": _smallImages.where((f) => f != null).cast<File>().toList(),
                         "identityDocs": _identityDocs,
                         "medicalDocs": _medicalDocs,
+                        "isEdit": _isEdit,
+                        "networkImages": [
+                          if (_mainImage == null && _existingMainImageUrl != null && _existingMainImageUrl!.isNotEmpty)
+                            _existingMainImageUrl!,
+                          ..._existingSmallImageUrls.where((u) => u.isNotEmpty),
+                        ],
                         "onSubmit": _submitCampaign,
                       },
                     );
@@ -1104,7 +1639,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: _submitCampaign,
-                  child: Text(AppString.raiseAction.tr, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: Text(_isEdit ? "Update" : AppString.raiseAction.tr, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -1114,7 +1649,7 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
     );
   }
 
-  Widget _buildTextField(String label, String hint, {Widget? prefixIcon, Widget? suffixIcon, TextEditingController? controller, bool readOnly = false, VoidCallback? onTap}) {
+  Widget _buildTextField(String label, String hint, {Widget? prefixIcon, Widget? suffixIcon, TextEditingController? controller, bool readOnly = false, VoidCallback? onTap, TextInputType? keyboardType, List<TextInputFormatter>? inputFormatters}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1124,6 +1659,8 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
           controller: controller,
           readOnly: readOnly,
           onTap: onTap,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 14),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../Widget/shimmer_widget.dart';
@@ -120,10 +121,10 @@ class _DonateAmountScreenState extends State<DonateAmountScreen> {
                     height: 60,
                     fit: BoxFit.cover,
                     placeholder: (ctx, url) => const ShimmerWidget(height: 60, width: 80),
-                    errorWidget: (ctx, url, err) => Image.asset(AppAssets.campaignImage, width: 80, height: 60, fit: BoxFit.cover),
+                    errorWidget: (ctx, url, err) => Image.asset(AppAssets.appLogo, width: 80, height: 60, fit: BoxFit.cover),
                   )
                 : Image.asset(
-                    AppAssets.campaignImage,
+                    AppAssets.appLogo,
                     width: 80,
                     height: 60,
                     fit: BoxFit.cover,
@@ -135,21 +136,21 @@ class _DonateAmountScreenState extends State<DonateAmountScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: AppFonts.semiBoldText.copyWith(fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppTheme.progressGreen.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text("$raised raised", style: AppFonts.semiBoldText.copyWith(fontSize: 10, color: AppTheme.progressGreen)),
-                    ),
-                    const Spacer(),
-                    Text("of $goal", style: AppFonts.regularText.copyWith(fontSize: 10, color: AppTheme.textGrey500)),
-                  ],
-                ),
+                // const SizedBox(height: 4),
+                // Row(
+                //   children: [
+                //     Container(
+                //       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                //       decoration: BoxDecoration(
+                //         color: AppTheme.progressGreen.withValues(alpha: 0.1),
+                //         borderRadius: BorderRadius.circular(4),
+                //       ),
+                //       child: Text("$raised raised", style: AppFonts.semiBoldText.copyWith(fontSize: 10, color: AppTheme.progressGreen)),
+                //     ),
+                //     const Spacer(),
+                //     Text("of $goal", style: AppFonts.regularText.copyWith(fontSize: 10, color: AppTheme.textGrey500)),
+                //   ],
+                // ),
               ],
             ),
           ),
@@ -206,6 +207,7 @@ class _DonateAmountScreenState extends State<DonateAmountScreen> {
       child: TextField(
         controller: _customAmountController,
         keyboardType: TextInputType.number,
+        inputFormatters: [LengthLimitingTextInputFormatter(10), FilteringTextInputFormatter.digitsOnly],
         onChanged: (val) {
           if (val.isNotEmpty) {
             setState(() {

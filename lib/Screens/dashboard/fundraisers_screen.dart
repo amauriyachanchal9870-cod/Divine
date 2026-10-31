@@ -9,6 +9,7 @@ import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/app_assets.dart';
 import '../../Routes/my_routes.dart';
+import '../../Widget/campaign_review_bottom_sheet.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class FundraisersScreen extends StatelessWidget {
@@ -108,27 +109,64 @@ class FundraisersScreen extends StatelessWidget {
   }
 
   Widget _buildCategories(ActiveCampaignsController controller) {
-    final categories = [
-      {'key': 'All', 'name': AppString.all.tr, 'icon': Icons.grid_view},
-      {'key': 'Medical', 'name': AppString.medical.tr, 'icon': Icons.medical_services_outlined},
-      {'key': 'Education', 'name': AppString.education.tr, 'icon': AppAssets.books},
-      {'key': 'Emergency', 'name': AppString.emergency.tr, 'icon': Icons.warning_amber_rounded},
-      {'key': 'Animal Welfare', 'name': AppString.animalWelfare.tr, 'icon': AppAssets.gau},
-      {'key': 'Religious', 'name': "Religious".tr, 'icon': Icons.temple_hindu_outlined},
-      {'key': 'NGO Welfare', 'name': "NGO Welfare".tr, 'icon': Icons.volunteer_activism_outlined},
-    ];
+    return Obx(() {
+      final dynamicList = controller.categoriesList;
 
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final catKey = categories[index]['key'] as String;
-          return Obx(() {
-            final isSelected = controller.selectedCategory.value == catKey;
+      final categories = [
+        {'key': 'All', 'name': AppString.all.tr, 'icon': Icons.grid_view},
+        ...dynamicList.map((cat) {
+          final name = cat.name ?? '';
+          final iconStr = cat.icon ?? '';
+          final imgStr = cat.imageUrl ?? '';
+
+          dynamic iconVal;
+          if (iconStr.startsWith('http://') || iconStr.startsWith('https://')) {
+            iconVal = iconStr;
+          } else if (imgStr.startsWith('http://') || imgStr.startsWith('https://')) {
+            iconVal = imgStr;
+          } else {
+            final nameLower = name.toLowerCase();
+            final iconLower = iconStr.toLowerCase();
+            final idLower = (cat.categoryId ?? '').toLowerCase();
+
+            if (iconLower == 'book-open' || nameLower.contains('book') || idLower.contains('book')) {
+              iconVal = AppAssets.books;
+            } else if (iconLower == 'utensils' || nameLower.contains('food') || idLower.contains('food')) {
+              iconVal = AppAssets.food;
+            } else if (iconLower == 'heart' || nameLower.contains('gau') || nameLower.contains('cow') || idLower.contains('cow') || idLower.contains('gau')) {
+              iconVal = AppAssets.gau;
+            } else if (iconLower == 'church' || nameLower.contains('temple') || idLower.contains('temp')) {
+              iconVal = AppAssets.temple;
+            } else if (nameLower.contains('cloth') || idLower.contains('cloth')) {
+              iconVal = AppAssets.clothes;
+            } else if (iconStr.isNotEmpty) {
+              iconVal = iconStr;
+            } else {
+              iconVal = Icons.category;
+            }
+          }
+
+          return {
+            'key': name,
+            'name': name,
+            'icon': iconVal,
+          };
+        }),
+      ];
+
+      return SizedBox(
+        height: 40,
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          scrollDirection: Axis.horizontal,
+          itemCount: categories.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            final catKey = categories[index]['key'] as String;
+            final catName = categories[index]['name'] as String;
+            final iconData = categories[index]['icon'];
+            final isSelected = controller.selectedCategory.value.toLowerCase() == catKey.toLowerCase();
+
             return GestureDetector(
               onTap: () {
                 controller.selectedCategory.value = catKey;
@@ -144,25 +182,44 @@ class FundraisersScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    categories[index]['icon'] is IconData
-                        ? Icon(
-                            categories[index]['icon'] as IconData,
-                            size: 14,
-                            color: isSelected ? Colors.white : Colors.black54,
-                          )
-                        : Image.asset(
-                            categories[index]['icon'] as String,
-                            width: 14,
-                            height: 14,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.category,
-                              size: 14,
-                              color: isSelected ? Colors.white : Colors.black54,
-                            ),
-                          ),
+                    if (iconData is IconData)
+                      Icon(
+                        iconData,
+                        size: 14,
+                        color: isSelected ? Colors.white : Colors.orange,
+                      )
+                    else if (iconData is String && (iconData.startsWith('http://') || iconData.startsWith('https://')))
+                      CachedNetworkImage(
+                        imageUrl: iconData,
+                        width: 14,
+                        height: 14,
+                        fit: BoxFit.cover,
+                        errorWidget: (c, e, s) => Icon(
+                          Icons.category,
+                          size: 14,
+                          color: isSelected ? Colors.white : Colors.orange,
+                        ),
+                      )
+                    else if (iconData is String && iconData.isNotEmpty)
+                      Image.asset(
+                        iconData,
+                        width: 14,
+                        height: 14,
+                        errorBuilder: (c, e, s) => Icon(
+                          Icons.category,
+                          size: 14,
+                          color: isSelected ? Colors.white : Colors.orange,
+                        ),
+                      )
+                    else
+                      Icon(
+                        Icons.category,
+                        size: 14,
+                        color: isSelected ? Colors.white : Colors.orange,
+                      ),
                     const SizedBox(width: 6),
                     Text(
-                      categories[index]['name'] as String,
+                      catName,
                       style: AppFonts.semiBoldText.copyWith(
                         color: isSelected ? Colors.white : Colors.black87,
                         fontSize: 12,
@@ -172,10 +229,10 @@ class FundraisersScreen extends StatelessWidget {
                 ),
               ),
             );
-          });
-        },
-      ),
-    );
+          },
+        ),
+      );
+    });
   }
 
   Widget _buildCampaignCard(CampaignDetailsData c) {
@@ -200,14 +257,14 @@ class FundraisersScreen extends StatelessWidget {
                       fit: BoxFit.cover,
                       placeholder: (ctx, url) => const ShimmerWidget(height: 160, width: double.infinity),
                       errorWidget: (ctx, url, err) => Image.asset(
-                        AppAssets.campaignImage,
+                        AppAssets.appLogo,
                         height: 160,
                         width: double.infinity,
                         fit: BoxFit.cover,
                       ),
                     )
                   : Image.asset(
-                      AppAssets.campaignImage,
+                      AppAssets.appLogo,
                       height: 160,
                       width: double.infinity,
                       fit: BoxFit.cover,
@@ -255,27 +312,99 @@ class FundraisersScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryDeepBlue,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
-                      ),
-                      onPressed: () {
-                        Get.toNamed(MyRouters.donateAmountScreen, arguments: c);
-                      },
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.favorite, color: Colors.white, size: 16),
-                          const SizedBox(width: 8),
-                          Text(AppString.donateNow.tr, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final bool isSelf = isSelfCampaign(
+                        campaignUserId: c.userId,
+                        campaignUser: c.user,
+                        campaignId: c.campaignId,
+                        campaignSId: c.sId,
+                      );
+                      final bool showReview = canShowCampaignReviewButton(
+                        isSelf: isSelf,
+                        isCompleted: c.isCompleted,
+                      );
+
+                      if (showReview) {
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 44,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryDeepBlue,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: () {
+                                    Get.toNamed(MyRouters.donateAmountScreen, arguments: c);
+                                  },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.favorite, color: Colors.white, size: 16),
+                                      const SizedBox(width: 8),
+                                      Text(AppString.donateNow.tr, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: SizedBox(
+                                height: 44,
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: AppTheme.primaryDeepBlue),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                  onPressed: () {
+                                    showCampaignReviewBottomSheet(
+                                      context: context,
+                                      campaignId: (c.campaignId != null && c.campaignId!.isNotEmpty) ? c.campaignId! : (c.sId ?? ''),
+                                      campaignTitle: c.title,
+                                    );
+                                  },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.star_outline, size: 16, color: AppTheme.primaryDeepBlue),
+                                      const SizedBox(width: 6),
+                                      Text("Review", style: TextStyle(color: AppTheme.primaryDeepBlue, fontSize: 13, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+
+                      return SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryDeepBlue,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            elevation: 0,
+                          ),
+                          onPressed: () {
+                            Get.toNamed(MyRouters.donateAmountScreen, arguments: c);
+                          },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.favorite, color: Colors.white, size: 16),
+                              const SizedBox(width: 8),
+                              Text(AppString.donateNow.tr, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

@@ -144,7 +144,9 @@ class _SearchScreenState extends State<SearchScreen> {
                             },
                           );
                         },
-                        childCount: controller.recentSearches.length,
+                        childCount: controller.recentSearches.length > 5
+                            ? 5
+                            : controller.recentSearches.length,
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 16)),

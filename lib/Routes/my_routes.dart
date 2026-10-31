@@ -12,12 +12,14 @@ import '../Screens/auth/role_selection_screen.dart';
 import '../Screens/auth/ngo_profile_setup_screen.dart';
 import '../Screens/auth/ngo_documents_verification_screen.dart';
 import '../Screens/auth/ngo_bank_details_screen.dart';
+import '../Screens/auth/ngo_not_verified_screen.dart';
 import '../Screens/splash_screen.dart';
 import '../Screens/dashboard/main_navigation_screen.dart';
 import '../Screens/dashboard/home_screen.dart';
 import '../Screens/dashboard/search_screen.dart';
 import '../Screens/dashboard/donate_screen.dart';
 import '../Screens/dashboard/fundraisers_screen.dart';
+import '../Screens/dashboard/ongoing_campaign_screen.dart';
 import '../Screens/dashboard/campaign_details_screen.dart';
 import '../Screens/dashboard/donate_amount_screen.dart';
 import '../Screens/dashboard/payment_method_screen.dart';
@@ -31,8 +33,10 @@ import '../Screens/dashboard/notification_screen.dart';
 import '../Screens/dashboard/ngo_categories_screen.dart';
 import '../Screens/dashboard/ngos_screen.dart';
 import '../Screens/dashboard/ngo_details_screen.dart';
+import '../Screens/dashboard/press_and_media_screen.dart';
 import '../Screens/dashboard/raise_campaign_wizard_screen.dart';
 import '../Screens/dashboard/raise_campaign_preview_screen.dart';
+import '../Screens/dashboard/campaign_verification_screen.dart';
 import '../Screens/wallet/wallet_screen.dart';
 import '../Screens/wallet/transactions_screen.dart';
 
@@ -41,7 +45,9 @@ import '../Screens/wallet/transactions_screen.dart';
 import '../Screens/wallet/add_money_screen.dart';
 import '../Screens/profile/profile_screen.dart';
 import '../Screens/profile/donation_history_screen.dart';
+import '../Screens/profile/donation_details_screen.dart';
 import '../Screens/profile/active_campaigns_screen.dart';
+import '../Screens/profile/my_campaigns_screen.dart';
 import '../Screens/profile/following_ngos_screen.dart';
 import '../Screens/profile/referral_rewards_screen.dart';
 import '../Screens/profile/help_support_screen.dart';
@@ -55,8 +61,10 @@ import '../Screens/profile/coupons_screen.dart';
 import '../Screens/profile/my_reviews_screen.dart';
 import '../Screens/profile/my_tickets_screen.dart';
 import '../Screens/profile/ngo_profile_detail_screen.dart';
+import '../Screens/profile/ngo_dashboard_screen.dart';
 import '../Controller/home_controller.dart';
 import '../Controller/daan_controller.dart';
+import '../Screens/coming_soon_screen.dart';
 
 class MyRouters {
   static var splash = "/splash";
@@ -68,6 +76,7 @@ class MyRouters {
   static var ngoProfileSetupScreen = "/ngoProfileSetupScreen";
   static var ngoDocumentsVerificationScreen = "/ngoDocumentsVerificationScreen";
   static var ngoBankDetailsScreen = "/ngoBankDetailsScreen";
+  static var ngoNotVerifiedScreen = "/ngoNotVerifiedScreen";
   static var profileSetupScreen = "/profileSetupScreen";
   static var onboardingScreen = "/onboardingScreen";
   static var successScreen = "/successScreen";
@@ -76,6 +85,7 @@ class MyRouters {
   static var searchScreen = "/searchScreen";
   static var donateScreen = "/donateScreen";
   static var fundraisersScreen = "/fundraisersScreen";
+  static var ongoingCampaignScreen = "/ongoingCampaignScreen";
   static var campaignDetailsScreen = "/campaignDetailsScreen";
   static var donateAmountScreen = "/donateAmountScreen";
   static var paymentMethodScreen = "/paymentMethodScreen";
@@ -91,14 +101,18 @@ class MyRouters {
   static var ngosScreen = "/ngosScreen";
   static var ngosGridScreen = "/ngosGridScreen";
   static var ngoDetailsScreen = "/ngoDetailsScreen";
+  static var pressAndMediaScreen = "/pressAndMediaScreen";
   static var raiseCampaignWizardScreen = "/raiseCampaignWizardScreen";
   static var raiseCampaignPreviewScreen = "/raiseCampaignPreviewScreen";
+  static var campaignVerificationScreen = "/campaignVerificationScreen";
   static var walletScreen = "/walletScreen";
   static var transactionsScreen = "/transactionsScreen";
   static var addMoneyScreen = "/addMoneyScreen";
   static var profileScreen = "/profileScreen";
   static var donationHistoryScreen = "/donationHistoryScreen";
+  static var donationDetailsScreen = "/donationDetailsScreen";
   static var activeCampaignsScreen = "/activeCampaignsScreen";
+  static var myCampaignsScreen = "/myCampaignsScreen";
   static var followingNgosScreen = "/followingNgosScreen";
   static var referralRewardsScreen = "/referralRewardsScreen";
   static var helpSupportScreen = "/helpSupportScreen";
@@ -112,17 +126,25 @@ class MyRouters {
   static var myReviewsScreen = "/myReviewsScreen";
   static var myTicketsScreen = "/myTicketsScreen";
   static var ngoProfileDetailScreen = "/ngoProfileDetailScreen";
+  static var ngoDashboardScreen = "/ngoDashboardScreen";
+  static var comingSoonScreen = "/comingSoonScreen";
 
   static var route = [
     GetPage(name: '/', page: () => const SplashScreen()),
     GetPage(name: "/loginScreen", page: () => const LoginScreen()),
     GetPage(name: "/signupScreen", page: () => const SignupScreen()),
     GetPage(name: "/phoneVerificationScreen", page: () => const PhoneVerificationScreen()),
-    GetPage(name: "/otpVerificationScreen", page: () => const OTPVerificationScreen()),
+    GetPage(
+      name: "/otpVerificationScreen",
+      page: () => const OTPVerificationScreen(),
+      opaque: false,
+      fullscreenDialog: true,
+    ),
     GetPage(name: "/roleSelectionScreen", page: () => const RoleSelectionScreen()),
     GetPage(name: "/ngoProfileSetupScreen", page: () => const NgoProfileSetupScreen()),
     GetPage(name: "/ngoDocumentsVerificationScreen", page: () => const NgoDocumentsVerificationScreen()),
     GetPage(name: "/ngoBankDetailsScreen", page: () => const NgoBankDetailsScreen()),
+    GetPage(name: "/ngoNotVerifiedScreen", page: () => const NgoNotVerifiedScreen()),
     GetPage(name: "/profileSetupScreen", page: () => const ProfileSetupScreen()),
     GetPage(name: "/onboardingScreen", page: () => const OnboardingScreen()),
     GetPage(name: "/successScreen", page: () => const SuccessScreen()),
@@ -138,6 +160,7 @@ class MyRouters {
     GetPage(name: "/searchScreen", page: () => const SearchScreen()),
     GetPage(name: "/donateScreen", page: () => const DonateScreen()),
     GetPage(name: "/fundraisersScreen", page: () => const FundraisersScreen()),
+    GetPage(name: "/ongoingCampaignScreen", page: () => const OngoingCampaignScreen()),
     GetPage(name: "/campaignDetailsScreen", page: () => const CampaignDetailsScreen()),
     GetPage(name: "/donateAmountScreen", page: () => const DonateAmountScreen()),
     GetPage(name: "/paymentMethodScreen", page: () => const PaymentMethodScreen()),
@@ -183,14 +206,18 @@ class MyRouters {
     GetPage(name: "/ngosScreen", page: () => const NgoCategoriesScreen()),
     GetPage(name: "/ngosGridScreen", page: () => const NgosScreen()),
     GetPage(name: "/ngoDetailsScreen", page: () => const NgoDetailsScreen()),
+    GetPage(name: "/pressAndMediaScreen", page: () => const PressAndMediaScreen()),
     GetPage(name: "/raiseCampaignWizardScreen", page: () => const RaiseCampaignWizardScreen()),
     GetPage(name: "/raiseCampaignPreviewScreen", page: () => const RaiseCampaignPreviewScreen()),
+    GetPage(name: "/campaignVerificationScreen", page: () => const CampaignVerificationScreen()),
     GetPage(name: "/walletScreen", page: () => const WalletScreen()),
     GetPage(name: "/transactionsScreen", page: () => const TransactionsScreen()),
     GetPage(name: "/addMoneyScreen", page: () => const AddMoneyScreen()),
     GetPage(name: "/profileScreen", page: () => const ProfileScreen()),
     GetPage(name: "/donationHistoryScreen", page: () => const DonationHistoryScreen()),
+    GetPage(name: "/donationDetailsScreen", page: () => const DonationDetailsScreen()),
     GetPage(name: "/activeCampaignsScreen", page: () => const ActiveCampaignsScreen()),
+    GetPage(name: "/myCampaignsScreen", page: () => const MyCampaignsScreen()),
     GetPage(name: "/followingNgosScreen", page: () => const FollowingNgosScreen()),
     GetPage(name: "/referralRewardsScreen", page: () => const ReferralRewardsScreen()),
     GetPage(name: "/helpSupportScreen", page: () => const HelpSupportScreen()),
@@ -204,5 +231,7 @@ class MyRouters {
     GetPage(name: "/myReviewsScreen", page: () => const MyReviewsScreen()),
     GetPage(name: "/myTicketsScreen", page: () => const MyTicketsScreen()),
     GetPage(name: "/ngoProfileDetailScreen", page: () => const NgoProfileDetailScreen()),
+    GetPage(name: "/ngoDashboardScreen", page: () => const NgoDashboardScreen()),
+    GetPage(name: "/comingSoonScreen", page: () => const ComingSoonScreen()),
   ];
 }

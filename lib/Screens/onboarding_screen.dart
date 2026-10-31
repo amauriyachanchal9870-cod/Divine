@@ -182,8 +182,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             top: MediaQuery.of(context).padding.top + 10,
             right: 20,
             child: GestureDetector(
-              onTap: () {
-                // Do not set isFirstTime to false so onboarding shows again on next launch
+              onTap: () async {
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('isFirstTime', false);
                 Get.offAllNamed(MyRouters.loginScreen);
               },
               child: Container(

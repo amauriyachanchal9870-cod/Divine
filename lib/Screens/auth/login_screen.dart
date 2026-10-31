@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
@@ -253,38 +254,54 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(child: _socialButton(AppAssets.apple,)),
-                        // const SizedBox(width: 16),
-                        // Expanded(child: _socialButton("assets/images/facebook.png", Icons.facebook, AppTheme.fbColor)),
-                        const SizedBox(width: 16),
-                        Expanded(child: _socialButton(AppAssets.google,)),
-                      ],
+                    GetBuilder<AuthController>(
+                      builder: (controller) {
+                        final bool isGoogleLoading = controller.isSocialLoading && controller.activeSocialProvider == 'google';
+                        final bool isAppleLoading = controller.isSocialLoading && controller.activeSocialProvider == 'apple';
+                        final bool isAnyLoading = controller.isLoading || controller.isSocialLoading;
+
+                        final Widget googleButton = _socialButton(
+                          asset: AppAssets.google,
+                          title: "Google",
+                          isLoading: isGoogleLoading,
+                          isDisabled: isAnyLoading,
+                          onTap: () {
+                            if (!isAnyLoading) {
+                              controller.signInWithGoogle(context);
+                            }
+                          },
+                        );
+
+                        if (Platform.isIOS) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: _socialButton(
+                                  asset: AppAssets.apple,
+                                  title: "Apple",
+                                  isLoading: isAppleLoading,
+                                  isDisabled: isAnyLoading,
+                                  onTap: () {
+                                    if (!isAnyLoading) {
+                                      controller.signInWithApple(context);
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(child: googleButton),
+                            ],
+                          );
+                        } else {
+                          return Row(
+                            children: [
+                              Expanded(child: googleButton),
+                            ],
+                          );
+                        }
+                      },
                     ),
-                    // const SizedBox(height: 16),
-                    // Center(
-                    //   child: Text.rich(
-                    //     TextSpan(
-                    //       text: AppString.byContinuingText.tr,
-                    //       style: AppFonts.verySmallText.copyWith(color: AppTheme.textGrey500),
-                    //       children: [
-                    //         TextSpan(
-                    //           text: AppString.termsOfService.tr,
-                    //           style: AppFonts.verySmallText.copyWith(color: const Color(0xFF2C3995,),),
-                    //         ),
-                    //         TextSpan(text: AppString.and.tr),
-                    //         TextSpan(
-                    //           text: AppString.privacyPolicy.tr,
-                    //           style: AppFonts.verySmallText.copyWith(color: AppTheme.primaryDeepBlue, ),
-                    //         ),
-                    //       ],
-                    //     ),
-                    //     textAlign: TextAlign.center,
-                    //   ),
-                    // ),
-                    // const SizedBox(height: 10),
                   ],
                 ),
               ),
@@ -296,31 +313,54 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _socialButton(String asset,) {
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        color: AppTheme.whiteColor,
-        border: Border.all(color: AppTheme.fieldBorderColor),
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(color: AppTheme.blackColor.withValues(alpha: 0.05), blurRadius: 5, offset: const Offset(0, 2))
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset(asset, width: 24, height: 24,),
-          SizedBox(width: 10,),
-          Text(
-            asset.contains("apple") ? "Apple" : "Google",
-            style: AppFonts.semiBoldText.copyWith(
-              color: AppTheme.blackColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
+  Widget _socialButton({
+    required String asset,
+    required String title,
+    required bool isLoading,
+    required bool isDisabled,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: isDisabled ? null : onTap,
+      child: Opacity(
+        opacity: isDisabled && !isLoading ? 0.6 : 1.0,
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: AppTheme.whiteColor,
+            border: Border.all(color: AppTheme.fieldBorderColor),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(color: AppTheme.blackColor.withValues(alpha: 0.05), blurRadius: 5, offset: const Offset(0, 2))
+            ],
           ),
-        ],
+          child: isLoading
+              ? Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.primaryDeepBlue,
+                    ),
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(asset, width: 24, height: 24),
+                    const SizedBox(width: 10),
+                    Text(
+                      title,
+                      style: AppFonts.semiBoldText.copyWith(
+                        color: AppTheme.blackColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }

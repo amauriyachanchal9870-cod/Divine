@@ -4,6 +4,8 @@ class VerifyOtpModel {
   String? token;
   bool? isProfileComplete;
   bool? isVerified;
+  String? verificationStatus;
+  String? rejectionReason;
   UserData? data;
 
   VerifyOtpModel({
@@ -12,6 +14,8 @@ class VerifyOtpModel {
     this.token,
     this.isProfileComplete,
     this.isVerified,
+    this.verificationStatus,
+    this.rejectionReason,
     this.data,
   });
 
@@ -20,7 +24,14 @@ class VerifyOtpModel {
     message = json['message'];
     token = json['token'];
     isProfileComplete = json['isProfileComplete'];
-    isVerified = json['verified'];
+    isVerified = json['verified'] ?? json['isVerified'];
+    verificationStatus = json['verificationStatus']?.toString() ??
+        json['verification_status']?.toString() ??
+        (json['data'] is Map ? (json['data']['verificationStatus']?.toString() ?? json['data']['verification_status']?.toString()) : null) ??
+        (isVerified == true ? 'Verified' : (isVerified == false ? 'Pending' : null));
+    rejectionReason = json['rejectionReason']?.toString() ??
+        json['rejection_reason']?.toString() ??
+        (json['data'] is Map ? (json['data']['rejectionReason']?.toString() ?? json['data']['rejection_reason']?.toString()) : null);
     data = json['data'] != null ? UserData.fromJson(json['data']) : null;
   }
 
@@ -31,6 +42,8 @@ class VerifyOtpModel {
     data['token'] = token;
     data['isProfileComplete'] = isProfileComplete;
     data['verified'] = isVerified;
+    data['verificationStatus'] = verificationStatus;
+    data['rejectionReason'] = rejectionReason;
     if (this.data != null) {
       data['data'] = this.data!.toJson();
     }
@@ -47,6 +60,8 @@ class UserData {
   String? profilePhoto;
   String? role;
   bool? isVerified;
+  String? verificationStatus;
+  String? rejectionReason;
 
   UserData({
     this.id,
@@ -57,6 +72,8 @@ class UserData {
     this.profilePhoto,
     this.role,
     this.isVerified,
+    this.verificationStatus,
+    this.rejectionReason,
   });
 
   UserData.fromJson(Map<String, dynamic> json) {
@@ -67,7 +84,12 @@ class UserData {
     gender = json['gender'];
     profilePhoto = json['profilePhoto'];
     role = json['role'];
-    isVerified = json['verified'];
+    isVerified = json['verified'] ?? json['isVerified'];
+    verificationStatus = json['verificationStatus']?.toString() ??
+        json['verification_status']?.toString() ??
+        (isVerified == true ? 'Verified' : (isVerified == false ? 'Pending' : null));
+    rejectionReason = json['rejectionReason']?.toString() ??
+        json['rejection_reason']?.toString();
   }
 
   Map<String, dynamic> toJson() {
@@ -80,6 +102,8 @@ class UserData {
     data['profilePhoto'] = profilePhoto;
     data['role'] = role;
     data['verified'] = isVerified;
+    data['verificationStatus'] = verificationStatus;
+    data['rejectionReason'] = rejectionReason;
     return data;
   }
 }

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../Controller/daan_controller.dart';
 import '../../Controller/profile_controller.dart';
+import '../../Controller/wallet_controller.dart';
 import '../../Controller/home_controller.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_assets.dart';
@@ -35,9 +36,11 @@ class ReviewPayScreen extends StatelessWidget {
         centerTitle: false,
       ),
       body: Obx(() {
-        final cartItems = controller.danItems
-            .where((item) => (controller.itemQtyMap[item.id ?? ''] ?? 0) > 0)
-            .toList();
+        final cartItems = controller.cartItems.isNotEmpty
+            ? controller.cartItems
+            : controller.danItems
+                .where((item) => (controller.itemQtyMap[item.id ?? ''] ?? 0) > 0)
+                .toList();
 
         return Column(
           children: [
@@ -232,8 +235,8 @@ class ReviewPayScreen extends StatelessWidget {
             child: imageUrl != null
                 ? Image.network(imageUrl,
                     width: 54, height: 54, fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => Image.asset(AppAssets.campaignImage, width: 54, height: 54, fit: BoxFit.cover))
-                : Image.asset(AppAssets.campaignImage, width: 54, height: 54, fit: BoxFit.cover),
+                    errorBuilder: (c, e, s) => Image.asset(AppAssets.appLogo, width: 54, height: 54, fit: BoxFit.cover))
+                : Image.asset(AppAssets.appLogo, width: 54, height: 54, fit: BoxFit.cover),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -275,7 +278,12 @@ class ReviewPayScreen extends StatelessWidget {
 
   Widget _buildAddMoreItemsButton() {
     return GestureDetector(
-      onTap: () => Get.back(),
+      onTap: () {
+        Get.until((route) =>
+            route.settings.name == MyRouters.daanDetailsScreen ||
+            route.settings.name == MyRouters.donateFoodScreen ||
+            route.isFirst);
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Row(
@@ -439,8 +447,13 @@ class ReviewPayScreen extends StatelessWidget {
                       }
 
                       // Check wallet balance
-                      final walletBalance =
-                          profileController.profileData.value?.walletBalance ?? 0.0;
+                      final walletController = Get.isRegistered<WalletController>()
+                          ? Get.find<WalletController>()
+                          : Get.put(WalletController());
+                      final wBal = walletController.walletBalance.value;
+                      final pBal = profileController.profileData.value?.walletBalance ?? 0.0;
+                      final double hBal = Get.isRegistered<HomeController>() ? ((Get.find<HomeController>().homeData.value?.user?.walletBalance ?? 0).toDouble()) : 0.0;
+                      final walletBalance = wBal > 0 ? wBal : (pBal > 0 ? pBal : hBal);
                       if (total > walletBalance) {
                         showSnackBar("Insufficient balance for donate", false);
                         return;
@@ -455,8 +468,9 @@ class ReviewPayScreen extends StatelessWidget {
                       );
 
                       if (success) {
+                        walletController.fetchWalletData(forceRefresh: true);
                         if (Get.isRegistered<HomeController>()) {
-                          Get.find<HomeController>().fetchHomeData();
+                          Get.find<HomeController>().fetchHomeData(forceRefresh: true);
                         }
                         Get.toNamed(MyRouters.paymentSuccessScreen);
                       }

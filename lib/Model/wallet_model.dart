@@ -5,9 +5,12 @@ class WalletModel {
   WalletModel({this.status, this.data});
 
   factory WalletModel.fromJson(Map<String, dynamic> json) {
+    dynamic dataJson = json['data'] ?? json;
     return WalletModel(
-      status: json['status'],
-      data: json['data'] != null ? WalletData.fromJson(json['data']) : null,
+      status: json['status'] ?? true,
+      data: dataJson != null && dataJson is Map<String, dynamic>
+          ? WalletData.fromJson(dataJson)
+          : null,
     );
   }
 
@@ -23,16 +26,82 @@ class WalletModel {
 
 class WalletData {
   double? walletBalance;
+  double? cashbackBalance;
+  int? totalCoins;
+  double? coinsValueInRupees;
   List<WalletTransaction>? transactions;
+  List<RechargeTier>? predefinedRechargeTiers;
+  List<RechargeTier>? rechargeOffers;
 
-  WalletData({this.walletBalance, this.transactions});
+  WalletData({
+    this.walletBalance,
+    this.cashbackBalance,
+    this.totalCoins,
+    this.coinsValueInRupees,
+    this.transactions,
+    this.predefinedRechargeTiers,
+    this.rechargeOffers,
+  });
 
   factory WalletData.fromJson(Map<String, dynamic> json) {
+    dynamic raw = json['walletBalance'] ??
+        json['wallet_balance'] ??
+        json['balance'] ??
+        json['credits'] ??
+        json['creditBalance'] ??
+        json['totalBalance'] ??
+        json['availableBalance'] ??
+        (json['user'] is Map ? (json['user']['walletBalance'] ?? json['user']['balance']) : null);
+
+    double parsedVal = 0.0;
+    if (raw is num) {
+      parsedVal = raw.toDouble();
+    } else if (raw != null) {
+      parsedVal = double.tryParse(raw.toString()) ?? 0.0;
+    }
+
+    dynamic rawCashback = json['cashbackBalance'] ?? json['cashback_balance'] ?? json['cashback'];
+    double parsedCashback = 0.0;
+    if (rawCashback is num) {
+      parsedCashback = rawCashback.toDouble();
+    } else if (rawCashback != null) {
+      parsedCashback = double.tryParse(rawCashback.toString()) ?? 0.0;
+    }
+
+    dynamic rawCoins = json['totalCoins'] ?? json['total_coins'] ?? json['coins'];
+    int parsedCoins = 0;
+    if (rawCoins is num) {
+      parsedCoins = rawCoins.toInt();
+    } else if (rawCoins != null) {
+      parsedCoins = int.tryParse(rawCoins.toString()) ?? 0;
+    }
+
+    dynamic rawCoinsValue = json['coinsValueInRupees'] ?? json['coins_value_in_rupees'] ?? json['coinsValue'] ?? json['coins_value'];
+    double parsedCoinsValue = 0.0;
+    if (rawCoinsValue is num) {
+      parsedCoinsValue = rawCoinsValue.toDouble();
+    } else if (rawCoinsValue != null) {
+      parsedCoinsValue = double.tryParse(rawCoinsValue.toString()) ?? 0.0;
+    }
+
     return WalletData(
-      walletBalance: (json['walletBalance'] as num?)?.toDouble(),
+      walletBalance: parsedVal,
+      cashbackBalance: parsedCashback,
+      totalCoins: parsedCoins,
+      coinsValueInRupees: parsedCoinsValue,
       transactions: json['transactions'] != null
           ? List<WalletTransaction>.from(
               json['transactions'].map((x) => WalletTransaction.fromJson(x)))
+          : null,
+      predefinedRechargeTiers: json['predefinedRechargeTiers'] != null
+          ? List<RechargeTier>.from(
+              (json['predefinedRechargeTiers'] as List)
+                  .map((x) => RechargeTier.fromJson(x)))
+          : null,
+      rechargeOffers: json['rechargeOffers'] != null
+          ? List<RechargeTier>.from(
+              (json['rechargeOffers'] as List)
+                  .map((x) => RechargeTier.fromJson(x)))
           : null,
     );
   }
@@ -40,9 +109,67 @@ class WalletData {
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> map = <String, dynamic>{};
     map['walletBalance'] = walletBalance;
+    map['cashbackBalance'] = cashbackBalance;
+    map['totalCoins'] = totalCoins;
+    map['coinsValueInRupees'] = coinsValueInRupees;
     if (transactions != null) {
       map['transactions'] = transactions!.map((x) => x.toJson()).toList();
     }
+    if (predefinedRechargeTiers != null) {
+      map['predefinedRechargeTiers'] =
+          predefinedRechargeTiers!.map((x) => x.toJson()).toList();
+    }
+    if (rechargeOffers != null) {
+      map['rechargeOffers'] = rechargeOffers!.map((x) => x.toJson()).toList();
+    }
+    return map;
+  }
+}
+
+class RechargeTier {
+  String? id;
+  String? tierId;
+  int? amount;
+  int? cashback;
+  int? bonusCoins;
+  String? badgeText;
+  String? description;
+  bool? isActive;
+
+  RechargeTier({
+    this.id,
+    this.tierId,
+    this.amount,
+    this.cashback,
+    this.bonusCoins,
+    this.badgeText,
+    this.description,
+    this.isActive,
+  });
+
+  factory RechargeTier.fromJson(Map<String, dynamic> json) {
+    return RechargeTier(
+      id: json['_id'],
+      tierId: json['tierId'],
+      amount: (json['amount'] as num?)?.toInt(),
+      cashback: (json['cashback'] as num?)?.toInt(),
+      bonusCoins: (json['bonusCoins'] as num?)?.toInt(),
+      badgeText: json['badgeText']?.toString() ?? '',
+      description: json['description']?.toString(),
+      isActive: json['isActive'] ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> map = <String, dynamic>{};
+    map['_id'] = id;
+    map['tierId'] = tierId;
+    map['amount'] = amount;
+    map['cashback'] = cashback;
+    map['bonusCoins'] = bonusCoins;
+    map['badgeText'] = badgeText;
+    map['description'] = description;
+    map['isActive'] = isActive;
     return map;
   }
 }
@@ -91,18 +218,18 @@ class WalletTransaction {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      '_id': id,
-      'transactionId': transactionId,
-      'type': type,
-      'user': user,
-      'item': item,
-      'amount': amount,
-      'paymentPlan': paymentPlan,
-      'status': status,
-      'date': date,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-    };
+    final Map<String, dynamic> map = <String, dynamic>{};
+    map['_id'] = id;
+    map['transactionId'] = transactionId;
+    map['type'] = type;
+    map['user'] = user;
+    map['item'] = item;
+    map['amount'] = amount;
+    map['paymentPlan'] = paymentPlan;
+    map['status'] = status;
+    map['date'] = date;
+    map['createdAt'] = createdAt;
+    map['updatedAt'] = updatedAt;
+    return map;
   }
 }

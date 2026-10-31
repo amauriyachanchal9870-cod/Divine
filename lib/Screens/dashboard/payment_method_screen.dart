@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../Controller/profile_controller.dart';
+import '../../Controller/wallet_controller.dart';
 import '../../Controller/home_controller.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/helper.dart';
 import '../../Routes/my_routes.dart';
+import '../../Services/razorpay_service.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
   const PaymentMethodScreen({super.key});
@@ -17,15 +19,37 @@ class PaymentMethodScreen extends StatefulWidget {
 
 class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   final ProfileController _profileController = Get.put(ProfileController());
-  int _selectedCardIndex = -2; // -2 = Wallet Payment, 0 = Mastercard, 1 = Visa, etc.
+  late final WalletController _walletController;
+  late final RazorpayService _razorpayService;
+  int _selectedCardIndex = -2; // -2 = Wallet Payment, 1 = Razorpay Gateway, 0 = Mastercard, etc.
   int _selectedMoreOption = -1; // -1 = none, 0 = net banking, 1 = other wallets
 
   @override
   void initState() {
     super.initState();
+    _walletController = Get.isRegistered<WalletController>()
+        ? Get.find<WalletController>()
+        : Get.put(WalletController());
+    _razorpayService = RazorpayService();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _profileController.fetchProfile(context);
+      _profileController.fetchProfile(context, forceRefresh: true);
+      _walletController.fetchWalletData(forceRefresh: true);
     });
+  }
+
+  double _getEffectiveWalletBalance() {
+    final wBal = _walletController.walletBalance.value;
+    final pBal = _profileController.profileData.value?.walletBalance ?? 0.0;
+    final double hBal = Get.isRegistered<HomeController>() ? ((Get.find<HomeController>().homeData.value?.user?.walletBalance ?? 0).toDouble()) : 0.0;
+    if (wBal > 0) return wBal;
+    if (pBal > 0) return pBal;
+    return hBal;
+  }
+
+  @override
+  void dispose() {
+    _razorpayService.dispose();
+    super.dispose();
   }
 
   @override
@@ -50,46 +74,48 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // _buildTaxNotice(),
-                  // const SizedBox(height: 20),
                   _buildSectionTitle("Wallet Payment"),
                   const SizedBox(height: 12),
                   _buildWalletOption(),
                   const SizedBox(height: 24),
-                  // Disable UPI Payments section
-                  IgnorePointer(
-                    ignoring: true,
-                    child: Opacity(
-                      opacity: 0.5,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionTitle(AppString.upiPayments.tr),
-                          const SizedBox(height: 12),
-                          _buildUPIOptions(),
-                          const SizedBox(height: 12),
-                          _buildAddButton(AppString.addUpi.tr),
-                        ],
-                      ),
-                    ),
-                  ),
+                  _buildSectionTitle("Online Payment"),
+                  const SizedBox(height: 12),
+                  _buildRazorpayOption(),
                   const SizedBox(height: 24),
-                  // Disable More Options section
-                  IgnorePointer(
-                    ignoring: true,
-                    child: Opacity(
-                      opacity: 0.5,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionTitle(AppString.moreOptions.tr),
-                          const SizedBox(height: 12),
-                          _buildMoreOptions(),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+                  // Disable UPI Payments section
+                  // IgnorePointer(
+                  //   ignoring: true,
+                  //   child: Opacity(
+                  //     opacity: 0.5,
+                  //     child: Column(
+                  //       crossAxisAlignment: CrossAxisAlignment.start,
+                  //       children: [
+                  //         _buildSectionTitle(AppString.upiPayments.tr),
+                  //         const SizedBox(height: 12),
+                  //         _buildUPIOptions(),
+                  //         const SizedBox(height: 12),
+                  //         _buildAddButton(AppString.addUpi.tr),
+                  //       ],
+                  //     ),
+                  //   ),
+                  // ),
+                  // const SizedBox(height: 24),
+                  // // Disable More Options section
+                  // IgnorePointer(
+                  //   ignoring: true,
+                  //   child: Opacity(
+                  //     opacity: 0.5,
+                  //     child: Column(
+                  //       crossAxisAlignment: CrossAxisAlignment.start,
+                  //       children: [
+                  //         _buildSectionTitle(AppString.moreOptions.tr),
+                  //         const SizedBox(height: 12),
+                  //         _buildMoreOptions(),
+                  //       ],
+                  //     ),
+                  //   ),
+                  // ),
+                  // const SizedBox(height: 32),
                   _buildSecurityFooter(),
                 ],
               ),
@@ -103,7 +129,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
   Widget _buildWalletOption() {
     return Obx(() {
-      final balance = _profileController.profileData.value?.walletBalance ?? 0.0;
+      final balance = _getEffectiveWalletBalance();
       final isSelected = _selectedCardIndex == -2;
 
       return GestureDetector(
@@ -157,7 +183,58 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     });
   }
 
+  Widget _buildRazorpayOption() {
+    final isSelected = _selectedCardIndex == 1;
 
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedCardIndex = 1;
+          _selectedMoreOption = -1;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: isSelected ? AppTheme.primaryDeepBlue : AppTheme.fieldBorderColor),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.payment, color: Colors.blue, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Razorpay Gateway", style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text(
+                    "UPI, Credit/Debit Cards, Net Banking, Wallets",
+                    style: AppFonts.regularText.copyWith(fontSize: 11, color: AppTheme.textGrey500),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              color: isSelected ? AppTheme.primaryDeepBlue : AppTheme.fieldBorderColor,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildSectionTitle(String title) {
     return Text(title, style: AppFonts.semiBoldText.copyWith(fontSize: 14, color: Colors.black87));
@@ -211,8 +288,6 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       ),
     );
   }
-
-
 
   Widget _buildMoreOptions() {
     return Column(
@@ -302,23 +377,23 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
               elevation: 0,
             ),
             onPressed: () async {
+              final double amtVal = double.tryParse(amount) ?? 0.0;
+              if (amtVal < 50) {
+                showSnackBar("Amount should be more than 50rs", false);
+                return;
+              }
+              if (amtVal >= 10000000) {
+                showSnackBar("Amount should be less than 10000000rs", false);
+                return;
+              }
+
               if (_selectedCardIndex == -2) {
                 if (campaignId.isEmpty) {
                   showSnackBar("Invalid campaign.", false);
                   return;
                 }
-                final double amtVal = double.tryParse(amount) ?? 0.0;
-                if (amtVal < 50) {
-                  showSnackBar("Amount should be more than 50rs", false);
-                  return;
-                }
-                if (amtVal >= 10000000) {
-                  showSnackBar("Amount should be less than 10000000rs", false);
-                  return;
-                }
-
                 // Check wallet balance
-                final balance = _profileController.profileData.value?.walletBalance ?? 0.0;
+                final balance = _getEffectiveWalletBalance();
                 if (balance < amtVal) {
                   showSnackBar("Insufficient balance for donate", false);
                   return;
@@ -326,11 +401,30 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
                 final success = await _profileController.donateWithWallet(context, campaignId, amtVal, isNgo: isNgo);
                 if (success) {
+                  _walletController.fetchWalletData(forceRefresh: true);
                   if (Get.isRegistered<HomeController>()) {
-                    Get.find<HomeController>().fetchHomeData();
+                    Get.find<HomeController>().fetchHomeData(forceRefresh: true);
                   }
                   Get.toNamed(MyRouters.paymentSuccessScreen);
                 }
+              } else if (_selectedCardIndex == 1) {
+                final profile = _profileController.profileData.value;
+                _razorpayService.openCheckout(
+                  amountInRupees: amtVal,
+                  description: campaignId.isNotEmpty ? "Campaign Donation" : "Donation Payment",
+                  userEmail: profile?.email ?? '',
+                  userPhone: profile?.phone ?? '',
+                  onSuccess: (response) {
+                    showSnackBar("Payment Successful! Payment ID: ${response.paymentId}", true);
+                    if (Get.isRegistered<HomeController>()) {
+                      Get.find<HomeController>().fetchHomeData();
+                    }
+                    Get.toNamed(MyRouters.paymentSuccessScreen);
+                  },
+                  onFailure: (response) {
+                    showSnackBar(response.message ?? "Payment Failed. Please try again.", false);
+                  },
+                );
               } else {
                 if (Get.isRegistered<HomeController>()) {
                   Get.find<HomeController>().fetchHomeData();

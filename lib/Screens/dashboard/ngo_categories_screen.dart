@@ -232,13 +232,9 @@ class NgoCategoriesScreen extends StatelessWidget {
                         width: double.infinity,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => const ShimmerWidget(width: double.infinity, height: double.infinity),
-                        errorWidget: (context, url, error) => Container(
-                          color: AppTheme.bannerBgColor,
-                          padding: const EdgeInsets.all(16),
-                          child: Image.asset(
-                            cat['fallbackIcon'] as String,
-                            fit: BoxFit.contain,
-                          ),
+                        errorWidget: (context, url, error) => Image.asset(
+                          AppAssets.appLogo,
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),

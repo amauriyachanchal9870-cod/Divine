@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../Utilities/app_theme.dart';
@@ -29,6 +30,11 @@ class _RaiseCampaignPreviewScreenState extends State<RaiseCampaignPreviewScreen>
       if (_profileController.profileData.value == null) {
         _profileController.fetchProfile(context);
       }
+      final userRole = (_profileController.profileData.value?.role ?? '').toLowerCase();
+      if (userRole == 'corporate') {
+        showSnackBar("Corporate users cannot raise campaigns", false);
+        Get.back();
+      }
     });
   }
 
@@ -53,8 +59,10 @@ class _RaiseCampaignPreviewScreenState extends State<RaiseCampaignPreviewScreen>
     final String description = args["description"] ?? "";
     final DateTime? endDate = args["endDate"] as DateTime?;
     final File? mainImage = args["mainImage"] as File?;
-    final List<File> smallImages = args["smallImages"] as List<File>;
+    final List<File> smallImages = (args["smallImages"] as List<File>?) ?? [];
     final VoidCallback onSubmit = args["onSubmit"] as VoidCallback;
+    final bool isEdit = args["isEdit"] == true;
+    final List<String> networkImages = (args["networkImages"] as List<String>?) ?? [];
 
     final List<File> allImages = [
       if (mainImage != null) mainImage,
@@ -72,7 +80,7 @@ class _RaiseCampaignPreviewScreenState extends State<RaiseCampaignPreviewScreen>
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 18),
           onPressed: () => Get.back(),
         ),
-        title: Text(AppString.campaignPreview.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
+        title: Text(isEdit ? "Campaign Preview" : AppString.campaignPreview.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
         centerTitle: false,
       ),
       body: Stack(
@@ -83,13 +91,13 @@ class _RaiseCampaignPreviewScreenState extends State<RaiseCampaignPreviewScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildProfileHeader(),
-                _buildHeaderImageSlider(allImages),
+                _buildHeaderImageSlider(allImages, networkImages),
                 _buildCampaignInfo(title, category, goal, daysLeft),
                 _buildDescription(description),
               ],
             ),
           ),
-          _buildBottomBar(onSubmit),
+          _buildBottomBar(onSubmit, isEdit),
         ],
       ),
     );
@@ -106,12 +114,32 @@ class _RaiseCampaignPreviewScreenState extends State<RaiseCampaignPreviewScreen>
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: AppTheme.fieldBorderColor,
-              backgroundImage: logoUrl != null && logoUrl.isNotEmpty
-                  ? NetworkImage(logoUrl)
-                  : const AssetImage(AppAssets.ngoLogo) as ImageProvider,
+            ClipOval(
+              child: (logoUrl != null && logoUrl.isNotEmpty)
+                  ? CachedNetworkImage(
+                      imageUrl: logoUrl,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        width: 40,
+                        height: 40,
+                        color: AppTheme.fieldBorderColor,
+                        child: Image.asset(AppAssets.appLogo, fit: BoxFit.cover),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        width: 40,
+                        height: 40,
+                        color: AppTheme.fieldBorderColor,
+                        child: Image.asset(AppAssets.appLogo, fit: BoxFit.cover),
+                      ),
+                    )
+                  : Container(
+                      width: 40,
+                      height: 40,
+                      color: AppTheme.fieldBorderColor,
+                      child: Image.asset(AppAssets.appLogo, fit: BoxFit.cover),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -140,8 +168,9 @@ class _RaiseCampaignPreviewScreenState extends State<RaiseCampaignPreviewScreen>
     });
   }
 
-  Widget _buildHeaderImageSlider(List<File> allImages) {
-    if (allImages.isEmpty) {
+  Widget _buildHeaderImageSlider(List<File> allImages, List<String> networkImages) {
+    final totalCount = allImages.length + networkImages.length;
+    if (totalCount == 0) {
       return Image.asset(
         AppAssets.campaignImage,
         width: double.infinity,
@@ -157,28 +186,40 @@ class _RaiseCampaignPreviewScreenState extends State<RaiseCampaignPreviewScreen>
         alignment: Alignment.bottomCenter,
         children: [
           PageView.builder(
-            itemCount: allImages.length,
+            itemCount: totalCount,
             onPageChanged: (index) {
               setState(() {
                 _activeImageIndex = index;
               });
             },
             itemBuilder: (context, index) {
-              return Image.file(
-                allImages[index],
-                width: double.infinity,
-                height: 250,
-                fit: BoxFit.cover,
-              );
+              if (index < allImages.length) {
+                return Image.file(
+                  allImages[index],
+                  width: double.infinity,
+                  height: 250,
+                  fit: BoxFit.cover,
+                );
+              } else {
+                final netIdx = index - allImages.length;
+                return CachedNetworkImage(
+                  imageUrl: networkImages[netIdx],
+                  width: double.infinity,
+                  height: 250,
+                  fit: BoxFit.cover,
+                  placeholder: (ctx, url) => const Center(child: CircularProgressIndicator()),
+                  errorWidget: (ctx, url, err) => Image.asset(AppAssets.campaignImage, fit: BoxFit.cover),
+                );
+              }
             },
           ),
-          if (allImages.length > 1)
+          if (totalCount > 1)
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
-                  allImages.length,
+                  totalCount,
                   (index) => Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     width: 8,
@@ -239,10 +280,10 @@ class _RaiseCampaignPreviewScreenState extends State<RaiseCampaignPreviewScreen>
               const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
               const SizedBox(width: 6),
               Text("$daysLeft days left", style: AppFonts.regularText.copyWith(fontSize: 12, color: Colors.black87)),
-              const SizedBox(width: 24),
-              const Icon(Icons.remove_red_eye_outlined, size: 16, color: Colors.grey),
-              const SizedBox(width: 6),
-              Text("0 Views", style: AppFonts.regularText.copyWith(fontSize: 12, color: Colors.black87)),
+              // const SizedBox(width: 24),
+              // const Icon(Icons.remove_red_eye_outlined, size: 16, color: Colors.grey),
+              // const SizedBox(width: 6),
+              // Text("0 Views", style: AppFonts.regularText.copyWith(fontSize: 12, color: Colors.black87)),
             ],
           ),
           const SizedBox(height: 24),
@@ -269,7 +310,7 @@ class _RaiseCampaignPreviewScreenState extends State<RaiseCampaignPreviewScreen>
     );
   }
 
-  Widget _buildBottomBar(VoidCallback onSubmit) {
+  Widget _buildBottomBar(VoidCallback onSubmit, bool isEdit) {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
@@ -297,7 +338,7 @@ class _RaiseCampaignPreviewScreenState extends State<RaiseCampaignPreviewScreen>
               onPressed: () {
                 onSubmit();
               },
-              child: Text(AppString.raiseCampaign.tr, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              child: Text(isEdit ? "Update" : AppString.raiseCampaign.tr, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
         ),

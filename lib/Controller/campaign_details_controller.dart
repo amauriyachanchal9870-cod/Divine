@@ -18,7 +18,9 @@ class CampaignDetailsController extends GetxController {
     fetchCampaignDetails();
   }
 
-  Future<void> fetchCampaignDetails() async {
+  Future<void> fetchCampaignDetails({bool forceRefresh = false}) async {
+    if (isLoading.value) return;
+    if (!forceRefresh && campaignDetails.value != null) return;
     if (campaignId.isEmpty) {
       errorMessage.value = 'Campaign ID is missing.';
       return;

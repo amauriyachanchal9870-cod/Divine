@@ -22,8 +22,9 @@ class HomeData {
   List<HomeNgo>? ngos;
   List<HomeDonationHistory>? donationHistory;
   int? totalDonateAmount;
+  List<HomePressMedia>? pressAndMedia;
 
-  HomeData({this.user, this.banners, this.categories, this.campaigns, this.ngos, this.donationHistory, this.totalDonateAmount});
+  HomeData({this.user, this.banners, this.categories, this.campaigns, this.ngos, this.donationHistory, this.totalDonateAmount, this.pressAndMedia});
 
   factory HomeData.fromJson(Map<String, dynamic> json) {
     return HomeData(
@@ -46,6 +47,11 @@ class HomeData {
       totalDonateAmount: json['totalDonateAmount'] is int
           ? json['totalDonateAmount']
           : int.tryParse(json['totalDonateAmount']?.toString() ?? '0') ?? 0,
+      pressAndMedia: (json['pressAndMedia'] ?? json['press_and_media']) != null
+          ? ((json['pressAndMedia'] ?? json['press_and_media']) as List)
+              .map((e) => HomePressMedia.fromJson(e))
+              .toList()
+          : [],
     );
   }
 }
@@ -96,15 +102,17 @@ class HomeCategory {
   String? categoryId;
   String? name;
   String? icon;
+  String? imageUrl;
   String? description;
 
-  HomeCategory({this.categoryId, this.name, this.icon, this.description});
+  HomeCategory({this.categoryId, this.name, this.icon, this.imageUrl, this.description});
 
   factory HomeCategory.fromJson(Map<String, dynamic> json) {
     return HomeCategory(
       categoryId: json['categoryId'],
       name: json['name'],
       icon: json['icon'],
+      imageUrl: json['imageUrl'],
       description: json['description'],
     );
   }
@@ -115,6 +123,7 @@ class HomeCampaign {
   String? campaignId;
   String? title;
   String? user;
+  String? userId;
   String? category;
   String? imageUrl;
   String? goal;
@@ -122,12 +131,14 @@ class HomeCampaign {
   int? donorsCount;
   int? daysLeft;
   String? description;
+  String? status;
 
   HomeCampaign({
     this.sId,
     this.campaignId,
     this.title,
     this.user,
+    this.userId,
     this.category,
     this.imageUrl,
     this.goal,
@@ -135,6 +146,7 @@ class HomeCampaign {
     this.donorsCount,
     this.daysLeft,
     this.description,
+    this.status,
   });
 
   factory HomeCampaign.fromJson(Map<String, dynamic> json) {
@@ -142,7 +154,13 @@ class HomeCampaign {
       sId: json['_id'] ?? json['id'],
       campaignId: json['campaignId'],
       title: json['title'],
-      user: json['user'],
+      user: json['user'] is Map
+          ? (json['user']['name'] ?? json['user']['userName'] ?? json['user']['_id']?.toString())
+          : json['user']?.toString(),
+      userId: (json['userId'] ??
+          (json['user'] is Map
+              ? json['user']['_id']
+              : (json['user'] is String ? json['user'] : null)))?.toString(),
       category: json['category'],
       imageUrl: json['imageUrl'],
       goal: json['goal']?.toString(),
@@ -150,6 +168,7 @@ class HomeCampaign {
       donorsCount: json['donorsCount'] is int ? json['donorsCount'] : int.tryParse(json['donorsCount']?.toString() ?? '0') ?? 0,
       daysLeft: json['daysLeft'] is int ? json['daysLeft'] : int.tryParse(json['daysLeft']?.toString() ?? '0') ?? 0,
       description: json['description'],
+      status: json['status']?.toString(),
     );
   }
 
@@ -179,7 +198,9 @@ class HomeCampaign {
     return parsed <= 0.0 ? 1.0 : parsed;
   }
 
-  bool get isCompleted => goalAmount > 0 && raisedAmount >= goalAmount;
+  bool get isCompleted =>
+      (status != null && status!.toLowerCase().trim() == 'completed') ||
+      (goalAmount > 0 && raisedAmount >= goalAmount);
   bool get isOngoing => !isCompleted;
 
   double get progress {
@@ -206,22 +227,35 @@ class HomeCampaign {
 
 class HomeNgo {
   String? id;
+  String? ngoId;
   String? name;
   String? logo;
   double? rating;
   String? impactStats;
   String? description;
+  String? about;
 
-  HomeNgo({this.id, this.name, this.logo, this.rating, this.impactStats, this.description});
+  HomeNgo({
+    this.id,
+    this.ngoId,
+    this.name,
+    this.logo,
+    this.rating,
+    this.impactStats,
+    this.description,
+    this.about,
+  });
 
   factory HomeNgo.fromJson(Map<String, dynamic> json) {
     return HomeNgo(
-      id: json['id'],
+      id: json['_id'] ?? json['id'],
+      ngoId: json['ngoId'],
       name: json['name'],
       logo: json['logo'],
       rating: (json['rating'] as num?)?.toDouble(),
       impactStats: json['impactStats'],
-      description: json['description'],
+      description: json['description'] ?? json['about'],
+      about: json['about'],
     );
   }
 }
@@ -235,6 +269,8 @@ class HomeDonationHistory {
   String? status;
   String? date;
   String? createdAt;
+  String? type;
+  String? fundCategory;
 
   HomeDonationHistory({
     this.transactionId,
@@ -245,11 +281,13 @@ class HomeDonationHistory {
     this.status,
     this.date,
     this.createdAt,
+    this.type,
+    this.fundCategory,
   });
 
   factory HomeDonationHistory.fromJson(Map<String, dynamic> json) {
     return HomeDonationHistory(
-      transactionId: json['transactionId'],
+      transactionId: json['transactionId'] ?? json['donationId'],
       user: json['user'],
       donor: json['donor'],
       item: json['item'],
@@ -257,7 +295,54 @@ class HomeDonationHistory {
       status: json['status'],
       date: json['date'],
       createdAt: json['createdAt'],
+      type: json['type'] ?? json['donationType'],
+      fundCategory: json['fundCategory'] ?? json['category'],
     );
+  }
+
+  bool get isDaan {
+    final t = (type ?? '').toLowerCase();
+    final c = (fundCategory ?? '').toLowerCase();
+    final itm = (item ?? '').toLowerCase();
+    return t.contains('dan') ||
+           t.contains('daan') ||
+           c.contains('dan') ||
+           c.contains('daan') ||
+           itm.contains('dan') ||
+           itm.contains('daan') ||
+           itm.contains('ration') ||
+           itm.contains('brahmin') ||
+           itm.contains('gau') ||
+           itm.contains('seva') ||
+           itm.contains('cow');
+  }
+
+  bool get isNgo {
+    if (isDaan) return false;
+    final t = (type ?? '').toLowerCase();
+    final c = (fundCategory ?? '').toLowerCase();
+    final itm = (item ?? '').toLowerCase();
+    return t.contains('ngo') ||
+           c.contains('ngo') ||
+           itm.contains('ngo') ||
+           itm.contains('trust') ||
+           itm.contains('foundation') ||
+           itm.contains('samiti');
+  }
+
+  bool get isCampaign {
+    return !isDaan && !isNgo;
+  }
+
+  DateTime? get parsedDate {
+    if (date != null && date!.isNotEmpty) {
+      final parsed = DateTime.tryParse(date!);
+      if (parsed != null) return parsed;
+    }
+    if (createdAt != null && createdAt!.isNotEmpty) {
+      return DateTime.tryParse(createdAt!);
+    }
+    return null;
   }
 
   String get timeAgo {
@@ -272,5 +357,66 @@ class HomeDonationHistory {
     } catch (_) {
       return '';
     }
+  }
+}
+
+class HomePressMedia {
+  String? id;
+  String? newsId;
+  String? title;
+  String? source;
+  String? content;
+  String? imageUrl;
+  String? publishedDate;
+  String? date;
+  String? time;
+  String? createdAt;
+  String? status;
+
+  HomePressMedia({
+    this.id,
+    this.newsId,
+    this.title,
+    this.source,
+    this.content,
+    this.imageUrl,
+    this.publishedDate,
+    this.date,
+    this.time,
+    this.createdAt,
+    this.status,
+  });
+
+  factory HomePressMedia.fromJson(Map<String, dynamic> json) {
+    return HomePressMedia(
+      id: json['_id'] ?? json['id'],
+      newsId: json['newsId'],
+      title: json['title'],
+      source: json['source'],
+      content: json['content'],
+      imageUrl: json['imageUrl'] ?? json['image'],
+      publishedDate: json['publishedDate'],
+      date: json['date'],
+      time: json['time'] ?? json['publishedTime'],
+      createdAt: json['createdAt'],
+      status: json['status'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'id': id,
+      'newsId': newsId,
+      'title': title,
+      'source': source,
+      'content': content,
+      'imageUrl': imageUrl,
+      'publishedDate': publishedDate,
+      'date': date,
+      'time': time,
+      'createdAt': createdAt,
+      'status': status,
+    };
   }
 }

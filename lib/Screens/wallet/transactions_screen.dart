@@ -109,7 +109,7 @@ class TransactionsScreen extends StatelessWidget {
         title: Obx(() {
           final tabName = controller.selectedTab.value;
           return Text(
-            "$tabName Transactions",
+            "Transaction History",
             style: AppFonts.titleStyle.copyWith(fontSize: 18, fontWeight: FontWeight.bold),
           );
         }),
@@ -180,9 +180,9 @@ class TransactionsScreen extends StatelessWidget {
                               expiryStr = "Expiry: 14 Jan 2027";
                             }
                             String? bonusStr;
-                            if (isPositive && (t.amount ?? 0) >= 1000) {
-                              bonusStr = "+150 bonus";
-                            }
+                            // if (isPositive && (t.amount ?? 0) >= 1000) {
+                            //   bonusStr = "+150 bonus";
+                            // }
 
                             return _buildTransactionItem(
                               t.item ?? "Transaction",

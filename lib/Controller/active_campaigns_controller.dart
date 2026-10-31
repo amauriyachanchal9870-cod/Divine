@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../Model/campaign_details_model.dart';
+import '../Model/campaign_category_model.dart';
 import '../Repo/common_repo.dart';
 import '../Utilities/api_constant.dart';
 
@@ -9,17 +11,52 @@ class ActiveCampaignsController extends GetxController {
   var activeCampaigns = <CampaignDetailsData>[].obs;
   var errorMessage = ''.obs;
   
+  // Dynamic categories
+  var categoriesList = <CampaignCategoryData>[].obs;
+  var isCategoriesLoading = false.obs;
+
   // Filtering state
   var searchQuery = ''.obs;
   var selectedCategory = 'All'.obs;
+  var selectedCampaignTab = 'Active'.obs;
 
   @override
   void onInit() {
     super.onInit();
     fetchActiveCampaigns();
+    fetchCampaignCategories();
   }
 
-  Future<void> fetchActiveCampaigns() async {
+  Future<void> fetchCampaignCategories({bool forceRefresh = false}) async {
+    if (isCategoriesLoading.value) return;
+    if (!forceRefresh && categoriesList.isNotEmpty) return;
+
+    try {
+      isCategoriesLoading.value = true;
+      String url = ApiUrls.donorCampaignCategoriesUrl;
+      final response = await Repositories().getApi(
+        url: url,
+        showResponse: true,
+      );
+
+      if (response != null) {
+        final jsonResponse = jsonDecode(response);
+        final model = CampaignCategoryModel.fromJson(jsonResponse);
+        if (model.status == true && model.data != null) {
+          categoriesList.assignAll(model.data!);
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching campaign categories: $e");
+    } finally {
+      isCategoriesLoading.value = false;
+    }
+  }
+
+  Future<void> fetchActiveCampaigns({bool forceRefresh = false}) async {
+    if (isLoading.value) return;
+    if (!forceRefresh && activeCampaigns.isNotEmpty) return;
+
     try {
       isLoading.value = true;
       errorMessage.value = '';
@@ -50,9 +87,14 @@ class ActiveCampaignsController extends GetxController {
   List<CampaignDetailsData> get filteredCampaigns {
     final cat = selectedCategory.value.toLowerCase().trim();
     final query = searchQuery.value.toLowerCase().trim();
+    final tab = selectedCampaignTab.value;
 
     return activeCampaigns.where((campaign) {
-      if (!campaign.isOngoing) return false;
+      if (tab == 'Completed') {
+        if (!campaign.isCompleted) return false;
+      } else {
+        if (!campaign.isOngoing) return false;
+      }
 
       final matchesSearch = (campaign.title ?? '').toLowerCase().contains(query) ||
                             (campaign.description ?? '').toLowerCase().contains(query);
@@ -62,13 +104,13 @@ class ActiveCampaignsController extends GetxController {
       }
 
       final campCat = (campaign.category ?? '').toLowerCase();
-      bool matchesCategory = campCat == cat;
-      if (cat == 'education') {
-        matchesCategory = campCat.contains('education') || campCat.contains('book');
-      } else if (cat == 'emergency') {
-        matchesCategory = campCat.contains('emergency') || campCat.contains('food');
-      } else if (cat == 'animal welfare') {
-        matchesCategory = campCat.contains('animal') || campCat.contains('cow') || campCat.contains('welfare');
+      bool matchesCategory = campCat == cat || campCat.contains(cat) || cat.contains(campCat);
+      if (cat == 'education' || cat == 'books') {
+        matchesCategory = matchesCategory || campCat.contains('education') || campCat.contains('book');
+      } else if (cat == 'emergency' || cat == 'food') {
+        matchesCategory = matchesCategory || campCat.contains('emergency') || campCat.contains('food') || campCat.contains('ration');
+      } else if (cat == 'animal welfare' || cat == 'animal') {
+        matchesCategory = matchesCategory || campCat.contains('animal') || campCat.contains('cow') || campCat.contains('welfare');
       }
 
       return matchesSearch && matchesCategory;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../Widget/shimmer_widget.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
@@ -9,6 +10,10 @@ import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
 import '../../Controller/follows_controller.dart';
+import '../../Controller/banner_controller.dart';
+import '../../Controller/profile_controller.dart';
+import '../../Controller/home_controller.dart';
+import '../../Widget/banner_slider_widget.dart';
 import '../../Model/social_model.dart';
 
 class FollowingNgosScreen extends StatefulWidget {
@@ -19,17 +24,81 @@ class FollowingNgosScreen extends StatefulWidget {
 }
 
 class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
-  bool isFollowersTab = true; // true = Followers, false = Following
+  bool isFollowersTab = false; // true = Followers, false = Following (defaults to false for donor/individual/corporate)
   bool isFilterNgo = true;    // true = NGOs, false = Individuals
+  String _userRole = '';
 
   final TextEditingController _searchController = TextEditingController();
   final FollowsController _followsController = Get.put(FollowsController());
+  late final BannerController _bannerController;
+
+  String _determineRole() {
+    if (Get.isRegistered<ProfileController>()) {
+      final r = Get.find<ProfileController>().profileData.value?.role;
+      if (r != null && r.trim().isNotEmpty) return r.trim().toLowerCase();
+    }
+    if (Get.isRegistered<HomeController>()) {
+      final r = Get.find<HomeController>().user?.role;
+      if (r != null && r.trim().isNotEmpty) return r.trim().toLowerCase();
+    }
+    return '';
+  }
+
+  bool get _isNgoUser {
+    final role = _userRole.isNotEmpty ? _userRole : _determineRole();
+    return role.toLowerCase() == 'ngo';
+  }
+
+  Future<void> _loadRole() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedRole = (prefs.getString('role') ?? '').trim().toLowerCase();
+      if (savedRole.isNotEmpty && mounted) {
+        final wasEmpty = _userRole.isEmpty;
+        setState(() {
+          _userRole = savedRole;
+          if (_isNgoUser) {
+            if (wasEmpty) isFollowersTab = true;
+          } else {
+            isFollowersTab = false;
+          }
+        });
+        if (_isNgoUser) {
+          _followsController.fetchFollowersList(forceRefresh: true);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _userRole = _determineRole();
+    if (_isNgoUser) {
+      isFollowersTab = true;
+    } else {
+      isFollowersTab = false;
+    }
+    _loadRole();
+
+    _bannerController = Get.isRegistered<BannerController>()
+        ? Get.find<BannerController>()
+        : Get.put(BannerController());
+
     _searchController.addListener(() {
       _followsController.searchQuery.value = _searchController.text;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _bannerController.fetchBanners('following_list');
+        _followsController.fetchFollowingList(forceRefresh: true);
+        if (_isNgoUser) {
+          _followsController.fetchFollowersList(forceRefresh: true);
+        }
+      }
     });
   }
 
@@ -58,53 +127,85 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
           ),
           centerTitle: false,
         ),
-        body: Column(
-          children: [
-            const SizedBox(height: 8),
-            // Custom Tab Switcher (Followers vs Following)
-            _buildTabSwitcher(),
-            const SizedBox(height: 16),
-            // Search Bar
-            _buildSearchBar(),
-            const SizedBox(height: 16),
-            // Filter Selector row
-            _buildFilterRow(),
-            const SizedBox(height: 16),
-            
-            // Content
-            Expanded(
-              child: Obx(() {
-                if (_followsController.isLoading.value) {
-                  return Center(
-                    child: LoadingAnimationWidget.threeRotatingDots(
-                      color: AppTheme.primaryDeepBlue,
-                      size: 50,
-                    ),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            await _followsController.fetchFollowingList();
+            if (_isNgoUser) {
+              await _followsController.fetchFollowersList();
+            }
+            await _bannerController.fetchBanners('following_list', forceRefresh: true);
+          },
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Obx(() {
+                final topBanners = _bannerController.getTopBanners('following_list');
+                if (topBanners.isNotEmpty) {
+                  return BannerSliderWidget(
+                    banners: topBanners,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   );
                 }
-
-                if (isFollowersTab) {
-                  if (isFilterNgo) {
-                    return _buildNgosGrid(_followsController.topNgos);
-                  } else {
-                    return _buildIndividualsList(_followsController.followers);
-                  }
-                } else {
-                  if (isFilterNgo) {
-                    return _buildNgosGrid(_followsController.followingNgos);
-                  } else {
-                    return _buildIndividualsList(_followsController.followingUsers);
-                  }
-                }
+                return const SizedBox.shrink();
               }),
-            ),
-          ],
+              // Custom Tab Switcher (Followers vs Following)
+              _buildTabSwitcher(),
+              const SizedBox(height: 16),
+              // Search Bar
+              _buildSearchBar(),
+              const SizedBox(height: 16),
+              Obx(() {
+                final bottomBanners = _bannerController.getBottomBanners('following_list');
+                if (bottomBanners.isNotEmpty) {
+                  return BannerSliderWidget(
+                    banners: bottomBanners,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
+              // Filter Selector row
+              // _buildFilterRow(),
+              // const SizedBox(height: 16),
+              
+              // Content
+              Expanded(
+                child: Obx(() {
+                  final bool showFollowers = _isNgoUser;
+                  if (_followsController.isFollowingLoading.value || (showFollowers && _followsController.isFollowersLoading.value)) {
+                    return Center(
+                      child: LoadingAnimationWidget.threeRotatingDots(
+                        color: AppTheme.primaryDeepBlue,
+                        size: 50,
+                      ),
+                    );
+                  }
+
+                  if (showFollowers && isFollowersTab) {
+                    if (isFilterNgo) {
+                      return _buildNgosGrid(_followsController.followersNgos);
+                    } else {
+                      return _buildIndividualsList(_followsController.followers);
+                    }
+                  } else {
+                    if (isFilterNgo) {
+                      return _buildNgosGrid(_followsController.followingNgos);
+                    } else {
+                      return _buildIndividualsList(_followsController.followingUsers);
+                    }
+                  }
+                }),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildTabSwitcher() {
+    final bool showFollowers = _isNgoUser;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       height: 44,
@@ -114,30 +215,31 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
       ),
       child: Row(
         children: [
-          // Followers Tab
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  isFollowersTab = true;
-                });
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isFollowersTab ? AppTheme.secondaryColor : Colors.transparent,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  AppString.followers.tr,
-                  style: AppFonts.semiBoldText.copyWith(
-                    fontSize: 14,
-                    color: isFollowersTab ? AppTheme.whiteColor : Colors.black54,
+          // Followers Tab (Only for NGO users)
+          if (showFollowers)
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    isFollowersTab = true;
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isFollowersTab ? AppTheme.secondaryColor : Colors.transparent,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    AppString.followers.tr,
+                    style: AppFonts.semiBoldText.copyWith(
+                      fontSize: 14,
+                      color: isFollowersTab ? AppTheme.whiteColor : Colors.black54,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
           // Following Tab
           Expanded(
             child: GestureDetector(
@@ -148,7 +250,7 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
               },
               child: Container(
                 decoration: BoxDecoration(
-                  color: !isFollowersTab ? AppTheme.secondaryColor : Colors.transparent,
+                  color: (!isFollowersTab || !showFollowers) ? AppTheme.secondaryColor : Colors.transparent,
                   borderRadius: BorderRadius.circular(22),
                 ),
                 alignment: Alignment.center,
@@ -156,7 +258,7 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
                   AppString.following.tr,
                   style: AppFonts.semiBoldText.copyWith(
                     fontSize: 14,
-                    color: !isFollowersTab ? AppTheme.whiteColor : Colors.black54,
+                    color: (!isFollowersTab || !showFollowers) ? AppTheme.whiteColor : Colors.black54,
                   ),
                 ),
               ),
@@ -275,7 +377,7 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 0.72,
+        childAspectRatio: 0.9,
       ),
       itemCount: displayedNgos.length,
       itemBuilder: (context, index) {
@@ -286,16 +388,27 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
   }
 
   Widget _buildNgoCard(SocialNgo ngo) {
-    final bool isFollowed = _followsController.isNgoFollowed(ngo.id ?? '');
+    final String role = (ngo.role != null && ngo.role!.trim().isNotEmpty)
+        ? ngo.role!.trim().toLowerCase()
+        : 'ngo';
+    final bool isCorporateOrDonor = role == 'corporate' || role == 'donor';
+    final bool showFollowButton = !isFollowersTab || (_isNgoUser && !isCorporateOrDonor && role == 'ngo');
 
     return GestureDetector(
-      onTap: () {
-        Get.toNamed(MyRouters.ngoDetailsScreen, arguments: {
-          'id': ngo.id,
-          'name': ngo.name,
-          'isFollowing': isFollowed,
-        });
-      },
+      onTap: isCorporateOrDonor
+          ? null
+          : () {
+              final payload = {
+                'id': ngo.ngoId,
+                'name': ngo.name,
+                'isFollowing': _followsController.isNgoFollowed(ngo.ngoId ?? ''),
+              };
+              debugPrint("==================================================");
+              debugPrint("🟢 [TAP NGO] Navigating to NGO Details from FollowingNgosScreen");
+              debugPrint("🟢 Payload / Arguments: $payload");
+              debugPrint("==================================================");
+              Get.toNamed(MyRouters.ngoDetailsScreen, arguments: payload);
+            },
       child: Container(
         decoration: BoxDecoration(
           color: AppTheme.whiteColor,
@@ -325,34 +438,13 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
                           height: 60,
                           fit: BoxFit.cover,
                           placeholder: (c, u) => const ShimmerWidget(width: 60, height: 60, borderRadius: BorderRadius.all(Radius.circular(30))),
-                          errorWidget: (c, u, e) => Image.asset(AppAssets.ngoLogo, width: 60, height: 60, fit: BoxFit.cover),
+                          errorWidget: (c, u, e) => Image.asset(AppAssets.appLogo, width: 60, height: 60, fit: BoxFit.cover),
                         )
-                      : Image.asset(AppAssets.ngoLogo, width: 60, height: 60, fit: BoxFit.cover),
-                ),
-                Positioned(
-                  bottom: -6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.ratingGreenBg,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.star, color: AppTheme.whiteColor, size: 8),
-                        const SizedBox(width: 2),
-                        Text(
-                          ngo.rating?.toString() ?? '4.5',
-                          style: AppFonts.semiBoldText.copyWith(color: AppTheme.whiteColor, fontSize: 8),
-                        ),
-                      ],
-                    ),
-                  ),
+                      : Image.asset(AppAssets.appLogo, width: 60, height: 60, fit: BoxFit.cover),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Text(
@@ -363,37 +455,34 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              ngo.about?.isNotEmpty == true ? ngo.about! : "Divine Help",
-              style: AppFonts.regularText.copyWith(fontSize: 10, color: AppTheme.textGrey500),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 32,
-              width: 100,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: AppTheme.primaryDeepBlue),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  padding: EdgeInsets.zero,
-                ),
-                onPressed: () {
-                  _followsController.toggleFollowNgoApi(ngo.id ?? '');
-                },
-                child: Text(
-                  isFollowed ? AppString.unfollow.tr : AppString.follow.tr,
-                  style: TextStyle(
-                    color: AppTheme.primaryDeepBlue, 
-                    fontSize: 11, 
-                    fontWeight: FontWeight.bold,
+            if (showFollowButton) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 32,
+                width: 100,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: AppTheme.primaryDeepBlue),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    padding: EdgeInsets.zero,
                   ),
+                  onPressed: () {
+                    _followsController.toggleFollowNgoApi(ngo.id ?? '');
+                  },
+                  child: Obx(() {
+                    final isFollowed = _followsController.isNgoFollowed(ngo.id ?? '');
+                    return Text(
+                      isFollowed ? AppString.unfollow.tr : AppString.follow.tr,
+                      style: TextStyle(
+                        color: AppTheme.primaryDeepBlue, 
+                        fontSize: 11, 
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -416,6 +505,12 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
       separatorBuilder: (_, __) => Divider(color: AppTheme.greyBg100, height: 1),
       itemBuilder: (context, index) {
         final item = list[index];
+        final String role = (item.role != null && item.role!.trim().isNotEmpty)
+            ? item.role!.trim().toLowerCase()
+            : 'donor';
+        final bool isCorporateOrDonor = role == 'corporate' || role == 'donor';
+        final bool showFollowButton = !isFollowersTab || (_isNgoUser && !isCorporateOrDonor && role == 'ngo');
+
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 10.0),
           child: Row(
@@ -449,31 +544,32 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
                   style: AppFonts.mediumText.copyWith(fontSize: 14, color: Colors.black87),
                 ),
               ),
-              SizedBox(
-                height: 32,
-                width: 90,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppTheme.primaryDeepBlue),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    padding: EdgeInsets.zero,
+              if (showFollowButton)
+                SizedBox(
+                  height: 32,
+                  width: 90,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: AppTheme.primaryDeepBlue),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: EdgeInsets.zero,
+                    ),
+                    onPressed: () {
+                      _followsController.toggleFollowUserApi(item.id ?? '');
+                    },
+                    child: Obx(() {
+                      final isFollowed = _followsController.isUserFollowed(item.id ?? '');
+                      return Text(
+                        isFollowed ? AppString.following.tr : AppString.follow.tr,
+                        style: TextStyle(
+                          color: AppTheme.primaryDeepBlue, 
+                          fontSize: 11, 
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    }),
                   ),
-                  onPressed: () {
-                    _followsController.toggleFollowUserApi(item.id ?? '');
-                  },
-                  child: Obx(() {
-                    final isFollowed = _followsController.isUserFollowed(item.id ?? '');
-                    return Text(
-                      isFollowed ? AppString.following.tr : AppString.follow.tr,
-                      style: TextStyle(
-                        color: AppTheme.primaryDeepBlue, 
-                        fontSize: 11, 
-                        fontWeight: FontWeight.bold,
-                      ),
-                    );
-                  }),
                 ),
-              ),
             ],
           ),
         );

@@ -36,7 +36,7 @@ class CampaignSearchController extends GetxController {
         final jsonResponse = jsonDecode(response);
         final model = RecentSearchModel.fromJson(jsonResponse);
         if (model.status == true && model.data != null) {
-          recentSearches.assignAll(model.data!);
+          recentSearches.assignAll(model.data!.take(5));
         }
       }
     } catch (e) {
@@ -50,7 +50,7 @@ class CampaignSearchController extends GetxController {
     if (query.trim().isEmpty) return;
     recentSearches.remove(query);
     recentSearches.insert(0, query);
-    if (recentSearches.length > 8) {
+    if (recentSearches.length > 5) {
       recentSearches.removeLast();
     }
   }
@@ -75,7 +75,7 @@ class CampaignSearchController extends GetxController {
         final jsonResponse = jsonDecode(response);
         final model = RecentSearchModel.fromJson(jsonResponse);
         if (model.status == true && model.data != null) {
-          recentSearches.assignAll(model.data!);
+          recentSearches.assignAll(model.data!.take(5));
         }
       }
     } catch (e) {

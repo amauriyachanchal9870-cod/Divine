@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -27,7 +28,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   });
 
   @override
-  _CustomAppBarState createState() => _CustomAppBarState();
+  State<CustomAppBar> createState() => _CustomAppBarState();
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -40,9 +41,18 @@ class _CustomAppBarState extends State<CustomAppBar> {
   Widget build(BuildContext context) {
     return Obx(() {
       if (themeChangeController.refreshInt.value >= 0) {}
+      final bgColor = widget.backgroundColor ?? AppTheme.backgroundWhiteColor;
+      final isDarkBg = ThemeData.estimateBrightnessForColor(bgColor) == Brightness.dark;
+      final systemUiStyle = SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDarkBg ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDarkBg ? Brightness.dark : Brightness.light,
+      );
+
       return AppBar(
+        systemOverlayStyle: systemUiStyle,
         automaticallyImplyLeading: false,
-        backgroundColor: widget.backgroundColor ?? AppTheme.backgroundWhiteColor,
+        backgroundColor: bgColor,
         elevation: widget.elevation ?? 0,
         centerTitle: widget.centerTitle,
         surfaceTintColor: AppTheme.primaryColor,
@@ -80,10 +90,12 @@ class _CustomAppBarState extends State<CustomAppBar> {
 
         title: Text(
           widget.titleText ?? "",
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
             color: AppTheme.txtColor,
             fontWeight: FontWeight.w600,
-            fontSize: 20,
+            fontSize: 18,
           ),
         ),
 

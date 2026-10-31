@@ -8,7 +8,7 @@ import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/custom_button.dart';
 import '../../Utilities/custom_textfield.dart';
-import '../../Routes/my_routes.dart';
+import 'otp_verification_screen.dart';
 
 class PhoneVerificationScreen extends StatefulWidget {
   const PhoneVerificationScreen({super.key});
@@ -118,7 +118,16 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                   showSnackBar(AppString.enterValidMobileNumberError.tr, false);
                   return;
                 }
-                Get.toNamed(MyRouters.otpVerificationScreen);
+                Get.bottomSheet(
+                  OTPVerificationScreen(
+                    phone: "+${selectedCountry.phoneCode} ${phoneController.text.trim()}",
+                  ),
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  barrierColor: Colors.black.withValues(alpha: 0.5),
+                  enterBottomSheetDuration: const Duration(milliseconds: 250),
+                  exitBottomSheetDuration: const Duration(milliseconds: 200),
+                );
               },
               color: AppTheme.primaryBlue,
               borderRadius: BorderRadius.circular(8),

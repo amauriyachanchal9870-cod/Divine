@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../Model/dan_categories_model.dart';
@@ -6,6 +7,7 @@ import '../Model/dan_subcategories_model.dart';
 import '../Model/dan_items_model.dart';
 import '../Repo/common_repo.dart';
 import '../Utilities/api_constant.dart';
+import 'banner_controller.dart';
 
 class DaanController extends GetxController {
   // Cart items quantity state
@@ -48,13 +50,26 @@ class DaanController extends GetxController {
   var isSubmitting = false.obs;
   // per-item quantity map: itemId -> qty
   final itemQtyMap = <String, int>{}.obs;
+  // Known items cache: itemId -> DanItemData
+  final allKnownItems = <String, DanItemData>{}.obs;
 
   // Dynamic total from items cart
   int get itemsTotal {
     int total = 0;
+    for (final entry in itemQtyMap.entries) {
+      final qty = entry.value;
+      if (qty > 0) {
+        final item = allKnownItems[entry.key];
+        if (item != null) {
+          total += qty * (item.price?.toInt() ?? 0);
+        }
+      }
+    }
     for (final item in danItems) {
-      final qty = itemQtyMap[item.id ?? ''] ?? 0;
-      total += qty * (item.price?.toInt() ?? 0);
+      if (!allKnownItems.containsKey(item.id)) {
+        final qty = itemQtyMap[item.id ?? ''] ?? 0;
+        total += qty * (item.price?.toInt() ?? 0);
+      }
     }
     return total;
   }
@@ -62,13 +77,31 @@ class DaanController extends GetxController {
   // Cart items with qty > 0
   List<Map<String, dynamic>> get cartPayload {
     final List<Map<String, dynamic>> payload = [];
-    for (final item in danItems) {
-      final qty = itemQtyMap[item.id ?? ''] ?? 0;
-      if (qty > 0) {
-        payload.add({"itemId": item.id, "quantity": qty});
+    for (final entry in itemQtyMap.entries) {
+      if (entry.value > 0) {
+        payload.add({"itemId": entry.key, "quantity": entry.value});
       }
     }
     return payload;
+  }
+
+  // List of all DanItemData currently selected (for ReviewPayScreen)
+  List<DanItemData> get cartItems {
+    final List<DanItemData> list = [];
+    for (final entry in itemQtyMap.entries) {
+      if (entry.value > 0) {
+        final item = allKnownItems[entry.key];
+        if (item != null && !list.any((e) => e.id == item.id)) {
+          list.add(item);
+        }
+      }
+    }
+    for (final item in danItems) {
+      if ((itemQtyMap[item.id ?? ''] ?? 0) > 0 && !list.any((e) => e.id == item.id)) {
+        list.add(item);
+      }
+    }
+    return list;
   }
 
   void incrementItem(String itemId) {
@@ -121,6 +154,7 @@ class DaanController extends GetxController {
       if (response != null) {
         final jsonResponse = jsonDecode(response);
         if (jsonResponse['status'] == true) {
+          clearCart();
           return true;
         }
       }
@@ -159,13 +193,22 @@ class DaanController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    if (!Get.isRegistered<BannerController>()) {
+      Get.put(BannerController());
+    }
     fetchDaanCategories();
   }
 
-  Future<void> fetchDaanCategories() async {
+  Future<void> fetchDaanCategories({bool forceRefresh = false}) async {
+    if (isLoading.value) return;
+    if (!forceRefresh && categories.isNotEmpty) return;
+
     try {
       isLoading.value = true;
       errorMessage.value = '';
+      if (Get.isRegistered<BannerController>()) {
+        Get.find<BannerController>().fetchBanners('daan_category', forceRefresh: forceRefresh);
+      }
 
       final response = await Repositories().getApi(
         url: ApiUrls.danCategoriesUrl,
@@ -209,6 +252,7 @@ class DaanController extends GetxController {
         final model = DanSubCategoriesModel.fromJson(jsonResponse);
         if (model.status == true) {
           subCategories.value = model.data ?? [];
+          log("Response-----: $response");
         } else {
           subCategoryError.value = 'Failed to load subcategories.';
         }
@@ -228,7 +272,6 @@ class DaanController extends GetxController {
       itemsLoading.value = true;
       itemsError.value = '';
       danItems.clear();
-      itemQtyMap.clear();
 
       final response = await Repositories().getApi(
         url: ApiUrls.danItemsUrl(subcategoryId),
@@ -240,9 +283,14 @@ class DaanController extends GetxController {
         final model = DanItemsModel.fromJson(jsonResponse);
         if (model.status == true) {
           danItems.value = model.data ?? [];
-          // initialise qty to 0 for each item
+          // Cache known items and retain existing quantities
           for (final item in danItems) {
-            if (item.id != null) itemQtyMap[item.id!] = 0;
+            if (item.id != null) {
+              allKnownItems[item.id!] = item;
+              if (!itemQtyMap.containsKey(item.id!)) {
+                itemQtyMap[item.id!] = 0;
+              }
+            }
           }
         } else {
           itemsError.value = 'Failed to load items.';
@@ -258,7 +306,14 @@ class DaanController extends GetxController {
     }
   }
 
+  void clearCart() {
+    itemQtyMap.clear();
+    danItems.clear();
+    allKnownItems.clear();
+  }
+
   void resetAll() {
+    clearCart();
     rationKitQty.value = 2;
     feedBrahminsQty.value = 0;
     dryRationsQty.value = 1;

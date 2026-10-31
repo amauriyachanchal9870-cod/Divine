@@ -29,7 +29,7 @@ class _InactiveAccountScreenState extends State<InactiveAccountScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 18),
           onPressed: () => Get.back(),
         ),
-        title: Text(AppString.inactiveAccount.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
+        title: Text(AppString.deleteAccount.tr, style: AppFonts.titleStyle.copyWith(fontSize: 18)),
         centerTitle: false,
       ),
       body: SingleChildScrollView(
@@ -53,22 +53,22 @@ class _InactiveAccountScreenState extends State<InactiveAccountScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        AppString.deactivateWarning.tr,
+                        AppString.deleteWarning.tr,
                         style: AppFonts.regularText.copyWith(fontSize: 12, color: Colors.red[800], height: 1.5),
                       ),
                     ),
                   ],
                 ),
               ),
+              // const SizedBox(height: 24),
+              // _buildCheckboxOption(AppString.keepMyData.tr, keepDataChecked, (val) {
+              //   setState(() => keepDataChecked = val ?? false);
+              // }),
+              // _buildCheckboxOption(AppString.deleteAllMyActivity.tr, deleteAllChecked, (val) {
+              //   setState(() => deleteAllChecked = val ?? false);
+              // }),
               const SizedBox(height: 24),
-              _buildCheckboxOption(AppString.keepMyData.tr, keepDataChecked, (val) {
-                setState(() => keepDataChecked = val ?? false);
-              }),
-              _buildCheckboxOption(AppString.deleteAllMyActivity.tr, deleteAllChecked, (val) {
-                setState(() => deleteAllChecked = val ?? false);
-              }),
-              const SizedBox(height: 24),
-              Text(AppString.reasonForDeactivation.tr, style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
+              Text(AppString.reasonForDeletion.tr, style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -100,10 +100,10 @@ class _InactiveAccountScreenState extends State<InactiveAccountScreen> {
               // _buildRadioOption("Yes, deactivate my account", "yes"),
               // _buildRadioOption("Cancel", "no"),
               // const SizedBox(height: 16),
-              Text(
-                AppString.reactivateNote.tr,
-                style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500, height: 1.5),
-              ),
+              // Text(
+              //   AppString.reactivateNote.tr,
+              //   style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500, height: 1.5),
+              // ),
               const SizedBox(height: 80),
               SizedBox(
                 width: double.infinity,
@@ -116,7 +116,7 @@ class _InactiveAccountScreenState extends State<InactiveAccountScreen> {
                   ),
                   onPressed: () => _showConfirmDialog(context),
                   child: Text(
-                    AppString.deactivateAccountButton.tr,
+                    AppString.deleteAccountButton.tr,
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -183,7 +183,7 @@ class _InactiveAccountScreenState extends State<InactiveAccountScreen> {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           contentPadding: const EdgeInsets.all(24),
-          title: Text("Are you sure you want to deactivate your account?", style: AppFonts.titleStyle.copyWith(fontSize: 16), textAlign: TextAlign.center),
+          title: Text(AppString.areYouSureDelete.tr, style: AppFonts.titleStyle.copyWith(fontSize: 16), textAlign: TextAlign.center),
           actions: [
             Row(
               children: [
@@ -202,7 +202,7 @@ class _InactiveAccountScreenState extends State<InactiveAccountScreen> {
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryDeepBlue,
+                      backgroundColor: Colors.red,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
@@ -211,10 +211,10 @@ class _InactiveAccountScreenState extends State<InactiveAccountScreen> {
                       Get.back();
                       await profileController.deactivateAccount(
                         context: context,
-                        deletePermanently: deleteAllChecked,
+                        deletePermanently: true,
                       );
                     }, 
-                    child: Text(AppString.deactivate.tr, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: Text(AppString.delete.tr, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],

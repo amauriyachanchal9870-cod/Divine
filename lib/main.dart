@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,35 +13,31 @@ import 'package:divine_foundation/Utilities/app_theme.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print("Background Notification Received: ${message.notification?.title}");}
+import 'Services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Stripe.publishableKey = 'pk_test_51S5fp6Czvo41TV2vWNffi4LiPGT0OtV0WeKapCuMURiNZPvcfqWpOGyVExOWw7NQxRYcKEJJZpQaxai6LUhpcCq9001qzO1bH4';
-  // await Stripe.instance.applySettings();
+  runApp(const MyApp());
+  unawaited(_initAsyncServices());
+}
 
+Future<void> _initAsyncServices() async {
   try {
-    await Firebase.initializeApp(
-      // TODO: When running on a specific platform without config files (google-services.json or GoogleService-Info.plist),
-      // you can provide the options manually here. Otherwise, ensure the config files are present.
-      // options: FirebaseOptions(
-      //   apiKey: "AIzaSyCT1ApvAtTVkIPkrpfVggUGN_IpPbSEps0",
-      //   appId: "1:642740048789:ios:24421ddcff19bdce19dc9c",
-      //   messagingSenderId: "642740048789",
-      //   projectId: "openstatus-44592",
-      // ),
-    );
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await NotificationService.instance.initialize();
+    final token = await FirebaseMessaging.instance.getToken();
+    debugPrint('🔥 FCM TOKEN: $token');
   } catch (e) {
-    print("Firebase initialization failed: $e");
-    print("Please ensure you have added google-services.json (Android) or GoogleService-Info.plist (iOS)");
-    print("Alternatively, run 'flutterfire configure' to generate firebase_options.dart");
+    debugPrint("Firebase initialization failed: $e");
   }
 
-  await Hive.initFlutter();
-  await Hive.openBox('login');
-  runApp(const MyApp());
+  try {
+    await Hive.initFlutter();
+    await Hive.openBox('login');
+  } catch (e) {
+    debugPrint("Hive initialization failed: $e");
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -57,6 +55,16 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
         textTheme: GoogleFonts.poppinsTextTheme(),
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
+        ),
         progressIndicatorTheme: ProgressIndicatorThemeData(
           color: AppTheme.primaryDeepBlue,
         ),

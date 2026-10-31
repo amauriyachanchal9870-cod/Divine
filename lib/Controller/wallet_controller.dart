@@ -4,13 +4,24 @@ import 'package:get/get.dart';
 import '../Model/wallet_model.dart';
 import '../Repo/common_repo.dart';
 import '../Utilities/api_constant.dart';
+import 'profile_controller.dart';
 
 class WalletController extends GetxController {
   var isLoading = false.obs;
   var walletBalance = 0.0.obs;
+  var cashbackBalance = 0.0.obs;
+  var totalCoins = 0.obs;
+  var coinsValueInRupees = 0.0.obs;
   var transactions = <WalletTransaction>[].obs;
   var errorMessage = ''.obs;
   var searchQuery = ''.obs;
+  var rechargeTiers = <RechargeTier>[
+    RechargeTier(tierId: "TIER-100", amount: 100, cashback: 10, bonusCoins: 100, badgeText: ""),
+    RechargeTier(tierId: "TIER-500", amount: 500, cashback: 50, bonusCoins: 500, badgeText: "Popular"),
+    RechargeTier(tierId: "TIER-1000", amount: 1000, cashback: 150, bonusCoins: 1000, badgeText: "Best Value"),
+    RechargeTier(tierId: "TIER-2000", amount: 2000, cashback: 400, bonusCoins: 2500, badgeText: "Super Saver"),
+    RechargeTier(tierId: "TIER-5000", amount: 5000, cashback: 1200, bonusCoins: 5000, badgeText: "Mega Booster"),
+  ].obs;
   var selectedFilter = 'All'.obs; // Options: 'All', 'Payment Logs', 'Cashback', 'Expiry Cashback'
   var selectedTab = 'Donations'.obs; // Options: 'Donations', 'Fundraising'
 
@@ -52,13 +63,18 @@ class WalletController extends GetxController {
     return list;
   }
 
+  var hasFetched = false.obs;
+
   @override
   void onInit() {
     super.onInit();
-    fetchWalletData();
+    transactions.value = [];
   }
 
-  Future<void> fetchWalletData() async {
+  Future<void> fetchWalletData({bool forceRefresh = false}) async {
+    if (isLoading.value) return;
+    if (!forceRefresh && hasFetched.value) return;
+
     try {
       isLoading.value = true;
       errorMessage.value = '';
@@ -72,8 +88,39 @@ class WalletController extends GetxController {
         final jsonResponse = jsonDecode(response);
         final model = WalletModel.fromJson(jsonResponse);
         if (model.status == true && model.data != null) {
-          walletBalance.value = model.data!.walletBalance ?? 0.0;
-          transactions.value = model.data!.transactions ?? [];
+          double bal = model.data!.walletBalance ?? 0.0;
+          if (bal == 0.0 && Get.isRegistered<ProfileController>()) {
+            final pBal = Get.find<ProfileController>().profileData.value?.walletBalance;
+            if (pBal != null && pBal > 0) bal = pBal;
+          }
+          walletBalance.value = bal;
+          if (Get.isRegistered<ProfileController>()) {
+            final pCtrl = Get.find<ProfileController>();
+            if (pCtrl.profileData.value != null) {
+              pCtrl.profileData.value!.walletBalance = bal;
+              pCtrl.profileData.refresh();
+            }
+          }
+          cashbackBalance.value = model.data!.cashbackBalance ?? 0.0;
+          totalCoins.value = model.data!.totalCoins ?? 0;
+          coinsValueInRupees.value = model.data!.coinsValueInRupees ?? 0.0;
+
+          List<WalletTransaction> apiTransactions = List<WalletTransaction>.from(model.data!.transactions ?? []);
+          // Filter out welcome bonus transactions so no welcome bonus is displayed
+          apiTransactions.removeWhere((t) => 
+            (t.item ?? '').toLowerCase().contains('welcome bonus') ||
+            (t.item ?? '').toLowerCase().contains('welcome')
+          );
+
+          transactions.value = apiTransactions;
+
+          final tiersList = model.data!.predefinedRechargeTiers ?? model.data!.rechargeOffers;
+          if (tiersList != null && tiersList.isNotEmpty) {
+            final activeTiers = tiersList.where((t) => t.isActive != false && (t.amount ?? 0) > 0).toList();
+            if (activeTiers.isNotEmpty) {
+              rechargeTiers.assignAll(activeTiers);
+            }
+          }
         } else {
           errorMessage.value = 'Failed to load wallet data.';
         }
@@ -84,6 +131,7 @@ class WalletController extends GetxController {
       errorMessage.value = 'Error: ${e.toString()}';
       debugPrint("Error fetching wallet data: $e");
     } finally {
+      hasFetched.value = true;
       isLoading.value = false;
     }
   }

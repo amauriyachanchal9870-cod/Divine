@@ -8,8 +8,26 @@ import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 
-class NotificationScreen extends StatelessWidget {
+class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
+
+  @override
+  State<NotificationScreen> createState() => _NotificationScreenState();
+}
+
+class _NotificationScreenState extends State<NotificationScreen> {
+  late final NotificationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = Get.isRegistered<NotificationController>()
+        ? Get.find<NotificationController>()
+        : Get.put(NotificationController());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.fetchNotifications();
+    });
+  }
 
   String _formatTimeAgo(String? dateStr) {
     if (dateStr == null) return "";
@@ -38,7 +56,7 @@ class NotificationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final NotificationController controller = Get.put(NotificationController());
+    final NotificationController controller = _controller;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -146,7 +164,7 @@ class NotificationScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () => controller.fetchNotifications(),
+                  onPressed: () => controller.fetchNotifications(forceRefresh: true),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryDeepBlue,
                     foregroundColor: Colors.white,
@@ -163,7 +181,7 @@ class NotificationScreen extends StatelessWidget {
         }
 
         return RefreshIndicator(
-          onRefresh: () => controller.fetchNotifications(),
+          onRefresh: () => controller.fetchNotifications(forceRefresh: true),
           color: AppTheme.primaryDeepBlue,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -179,7 +197,7 @@ class NotificationScreen extends StatelessWidget {
                     CircleAvatar(
                       radius: 22,
                       backgroundColor: AppTheme.fieldBorderColor,
-                      backgroundImage: const AssetImage(AppAssets.ngoLogo),
+                      backgroundImage: const AssetImage(AppAssets.appLogo),
                     ),
                     const SizedBox(width: 14),
                     Expanded(

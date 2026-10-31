@@ -6,6 +6,7 @@ import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/custom_button.dart';
 import '../../Routes/my_routes.dart';
+import '../../Token Manager/token_manager.dart';
 
 class SuccessScreen extends StatelessWidget {
   const SuccessScreen({super.key});
@@ -74,8 +75,9 @@ class SuccessScreen extends StatelessWidget {
                 height: 50,
                 width: double.infinity,
                 title: isNgo ? "Go to Login" : AppString.home.tr,
-                onTap: () {
+                onTap: () async {
                   if (isNgo) {
+                    await ManageTokens.clearAllAuthSession();
                     Get.offAllNamed(MyRouters.loginScreen);
                   } else {
                     Get.offAllNamed(MyRouters.mainNav);

@@ -5,9 +5,27 @@ import '../../Utilities/app_string.dart';
 import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Routes/my_routes.dart';
+import '../../Controller/banner_controller.dart';
+import '../../Widget/banner_slider_widget.dart';
 
-class DonateScreen extends StatelessWidget {
+class DonateScreen extends StatefulWidget {
   const DonateScreen({super.key});
+
+  @override
+  State<DonateScreen> createState() => _DonateScreenState();
+}
+
+class _DonateScreenState extends State<DonateScreen> {
+  late final BannerController bannerController;
+
+  @override
+  void initState() {
+    super.initState();
+    bannerController = Get.isRegistered<BannerController>()
+        ? Get.find<BannerController>()
+        : Get.put(BannerController());
+    bannerController.fetchBanners('donate');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,9 +93,28 @@ class DonateScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              // Banner: Every Contribution Creates an Impact
-              _buildImpactBanner(),
-              const SizedBox(height: 32),
+              // Top Banner: donate_home_top
+              Obx(() {
+                final topBanners = bannerController.getTopBanners('donate');
+                if (topBanners.isNotEmpty) {
+                  return BannerSliderWidget(banners: topBanners);
+                }
+                return SizedBox();
+                  // _buildImpactBanner();
+              }),
+              const SizedBox(height: 16),
+              // Bottom Banner for donate if present
+              Obx(() {
+                final bottomBanners = bannerController.getBottomBanners('donate');
+                if (bottomBanners.isNotEmpty) {
+                  return BannerSliderWidget(
+                    banners: bottomBanners,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
+              const SizedBox(height: 16),
               // Trusted section
               _buildTrustedSection(),
               const SizedBox(height: 16),
@@ -294,7 +331,7 @@ class DonateScreen extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
         image: const DecorationImage(
-          image: AssetImage(AppAssets.ngoLogo),
+          image: AssetImage(AppAssets.appLogo),
           fit: BoxFit.cover,
         ),
       ),

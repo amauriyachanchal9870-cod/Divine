@@ -60,35 +60,55 @@ class _CustomButtonState extends State<CustomButton> {
     return Padding(
       padding:  EdgeInsets.only(bottom: widget.isBottomSpace != null? 0: Platform.isAndroid ? 10 : 15),
       child: ElevatedButton(
-        onPressed: widget.onTap,
+        onPressed: widget.showLoader == true ? null : widget.onTap,
         style: ElevatedButton.styleFrom(
           foregroundColor: widget.titleColor ?? AppTheme.whiteColor,
           backgroundColor: widget.color ?? AppTheme.buttonColor, // Button text color
+          disabledBackgroundColor: widget.color ?? AppTheme.buttonColor,
+          disabledForegroundColor: widget.titleColor ?? AppTheme.whiteColor,
           minimumSize: Size(widget.width, widget.isBottomSpace != null ? widget.height: size.height*.06), // Button size
           shape: RoundedRectangleBorder(
             borderRadius:widget.borderRadius ?? BorderRadius.circular(14),
             side: widget.border != null ? BorderSide(color: widget.border!.top.color) : BorderSide.none, // Button border
           ),
         ),
-        child: Row(
-          mainAxisAlignment:  widget.title != null  ?  widget.showCenter == null? MainAxisAlignment.spaceBetween:MainAxisAlignment.center:MainAxisAlignment.center,
-          children: [
-            widget.picture != null?
-            SvgPicture.asset(widget.picture!,height: widget.pictureHeight!,color:  widget.pictureColor,):const SizedBox.shrink(),
-            if(widget.showCenter != null)
-              SizedBox(width: size.width*.04),
-            widget.title != null?
-            Text(
-              widget.title!,
-              // overflow: TextOverflow.fade,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+        child: widget.showLoader == true
+            ? const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              )
+            : Row(
+                mainAxisAlignment:  widget.title != null  ?  widget.showCenter == null? MainAxisAlignment.spaceBetween:MainAxisAlignment.center:MainAxisAlignment.center,
+                children: [
+                  widget.picture != null
+                      ? SvgPicture.asset(
+                          widget.picture!,
+                          height: widget.pictureHeight!,
+                          colorFilter: widget.pictureColor != null
+                              ? ColorFilter.mode(widget.pictureColor!, BlendMode.srcIn)
+                              : null,
+                        )
+                      : const SizedBox.shrink(),
+                  if(widget.showCenter != null)
+                    SizedBox(width: size.width*.04),
+                  widget.title != null?
+                  Text(
+                    widget.title!,
+                    // overflow: TextOverflow.fade,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ):const SizedBox.shrink(),
+                  const SizedBox.shrink()
+                ],
               ),
-            ):const SizedBox.shrink(),
-            const SizedBox.shrink()
-          ],
-        ),
       ),
     );
   }

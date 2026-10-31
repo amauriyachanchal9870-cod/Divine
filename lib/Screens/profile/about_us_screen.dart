@@ -89,7 +89,7 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                   height: 160,
                   width: double.infinity,
                   color: Colors.grey[200], // Placeholder for image
-                  child: Image.asset(AppAssets.campaignImage1, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.image, size: 50, color: Colors.grey)),
+                  child: Image.asset(AppAssets.campaignImage1, fit: BoxFit.cover, errorBuilder: (c, e, s) => Image.asset(AppAssets.appLogo, fit: BoxFit.cover)),
                 ),
               ),
               

@@ -4,12 +4,175 @@ import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../Routes/my_routes.dart';
 import '../Token Manager/token_manager.dart';
 import '../Utilities/helper.dart';
 
+class ApiLogger {
+  static const bool _verboseLogging = kDebugMode;
+
+  static Map<String, dynamic> sanitizeMap(Map<String, dynamic>? data) {
+    if (data == null) return {};
+    final sanitized = <String, dynamic>{};
+    const sensitiveKeys = {
+      'password',
+      'oldpassword',
+      'newpassword',
+      'pin',
+      'otp',
+      'token',
+      'accesstoken',
+      'refreshtoken',
+      'authorization',
+      'idtoken',
+      'authorizationcode',
+      'secret',
+    };
+
+    data.forEach((key, value) {
+      if (sensitiveKeys.contains(key.toLowerCase())) {
+        sanitized[key] = '[PROTECTED]';
+      } else if (value is Map<String, dynamic>) {
+        sanitized[key] = sanitizeMap(value);
+      } else {
+        sanitized[key] = value;
+      }
+    });
+    return sanitized;
+  }
+
+  static Map<String, String> sanitizeHeaders(Map<String, String>? headers) {
+    if (headers == null) return {};
+    final sanitized = <String, String>{};
+    headers.forEach((key, value) {
+      if (key.toLowerCase() == 'authorization' || key.toLowerCase().contains('token')) {
+        sanitized[key] = value.startsWith('Bearer ') ? 'Bearer [PROTECTED]' : '[PROTECTED]';
+      } else {
+        sanitized[key] = value;
+      }
+    });
+    return sanitized;
+  }
+
+  static void logRequest({
+    required String method,
+    required String url,
+    Map<String, dynamic>? body,
+    Map<String, String>? headers,
+  }) {
+    if (!_verboseLogging) return;
+    debugPrint("🌐 [API REQUEST] $method $url");
+    if (body != null && body.isNotEmpty) {
+      debugPrint("   Payload: ${jsonEncode(sanitizeMap(body))}", wrapWidth: 1024);
+    }
+  }
+
+  static void logDeduplicated({
+    required String method,
+    required String url,
+  }) {
+    if (!_verboseLogging) return;
+    debugPrint("⚡ [API DEDUPLICATED] $method $url (Reusing in-flight request)");
+  }
+
+  static void logResponse({
+    required String method,
+    required String url,
+    required int statusCode,
+    required String responseBody,
+  }) {
+    if (!_verboseLogging) return;
+    final isSuccess = statusCode >= 200 && statusCode < 300;
+    final prefix = isSuccess ? "✅ [API SUCCESS]" : "⚠️ [API STATUS $statusCode]";
+    debugPrint("$prefix $method $url");
+    debugPrint("   Status: $statusCode | Body: $responseBody", wrapWidth: 1024);
+  }
+
+  static void logError({
+    required String method,
+    required String url,
+    required dynamic error,
+  }) {
+    if (!_verboseLogging) return;
+    debugPrint("❌ [API FAILED] $method $url | Error: $error");
+  }
+}
+
 class Repositories {
+  // In-flight GET request deduplication cache to prevent identical parallel requests
+  static final Map<String, Future<dynamic>> _inFlightGetRequests = {};
+
+  // Flag to debounce simultaneous 404 redirect requests and prevent redirect loops
+  static bool _isHandling404 = false;
+
+  /// Central check to determine if an HTTP response represents a 404 Not Found error
+  /// or an invalid/deleted user state from the server.
+  static bool _is404(int statusCode, String? body) {
+    if (statusCode == 404) return true;
+    if (body != null && body.trim().isNotEmpty) {
+      final trimmed = body.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is Map) {
+            if (decoded['status'] == 404 ||
+                decoded['statusCode'] == 404 ||
+                decoded['code'] == 404) {
+              return true;
+            }
+            final msg = decoded['message']?.toString().toLowerCase().trim();
+            if (decoded['status'] == false &&
+                (msg == 'user not found' ||
+                 msg == 'user does not exist' ||
+                 msg == 'account not found' ||
+                 msg == 'account deleted' ||
+                 msg == 'user deleted')) {
+              return true;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+    return false;
+  }
+
+  /// Global exception/error handler for HTTP 404 responses.
+  /// When a user account is deleted by an admin or an invalid resource triggers 404,
+  /// this clears authentication session state and redirects the user to the Login screen.
+  static Future<void> handleNotFound404() async {
+    if (_isHandling404) return;
+    _isHandling404 = true;
+
+    try {
+      debugPrint("🚫 [GLOBAL ERROR HANDLER] HTTP 404 detected. Invalidating session and redirecting to Login.");
+
+      // Clear all auth tokens, cookies, cached preferences, and in-memory controllers
+      await ManageTokens.clearAllAuthSession();
+
+      if (Get.currentRoute != MyRouters.loginScreen) {
+        showSnackBar("Account not found. Please log in again.", false);
+        if (WidgetsBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (Get.currentRoute != MyRouters.loginScreen) {
+              Get.offAllNamed(MyRouters.loginScreen);
+            }
+          });
+        } else {
+          Get.offAllNamed(MyRouters.loginScreen);
+        }
+      }
+    } catch (e) {
+      debugPrint("Error in handleNotFound404: $e");
+    } finally {
+      Future.delayed(const Duration(seconds: 2), () {
+        _isHandling404 = false;
+      });
+    }
+  }
+
   Future<dynamic> postApi({
     BuildContext? context,
     required String url,
@@ -27,16 +190,15 @@ class Repositories {
 
     try {
       final Map<String, String> headers =
-      await ManageTokens.getHttpHeadersWithToken();
+          await ManageTokens.getHttpHeadersWithToken();
       mapData ??= {};
 
-      // if (kDebugMode) {
-      log("API Url.....  $url");
-      log("API mapData.....  $mapData");
-      if (true) {
-        log("API headers.....  $headers");
-      }
-      // }
+      ApiLogger.logRequest(
+        method: 'POST',
+        url: url,
+        body: mapData,
+        headers: headers,
+      );
 
       http.Response response = await http.post(
         Uri.parse(url),
@@ -44,38 +206,41 @@ class Repositories {
         headers: headers,
       );
 
-      // if (kDebugMode) {
-      //   if (showResponse == true) {
-      log("API Response Url........  $url");
-      log("API Response........  ${response.body}");
-      log("API Response Status Code........  ${response.statusCode}");
-      log("API Response Reason Phrase........  ${response.reasonPhrase}");
-      // }
-      // }
-
       Helpers.hideLoader(loader);
 
-      if (response.statusCode == 200 || response.statusCode == 404 || response.statusCode == 400 || response.statusCode == 201) {
+      ApiLogger.logResponse(
+        method: 'POST',
+        url: url,
+        statusCode: response.statusCode,
+        responseBody: response.body,
+      );
+
+      if (_is404(response.statusCode, response.body)) {
+        if (withStatus != null) {
+          withStatus(response.statusCode, response.body);
+        }
+        await handleNotFound404();
+        return null;
+      } else if (response.statusCode == 200 ||
+          response.statusCode == 400 ||
+          response.statusCode == 201) {
         if (withStatus != null) {
           withStatus(response.statusCode, response.body);
         }
         return response.body;
-      }
-      else if (response.statusCode == 401 && response.body == "Unauthorized") {
-        // Get.offAll(AccountTypeScreen());
-        logOutUser();
-        // throw Exception(response.body.toString());
-      }
-      else {
-        // showToast(response.body);
+      } else if (response.statusCode == 401 && response.body == "Unauthorized") {
+        await logOutUser();
+        return response.body;
+      } else {
         return response.body;
       }
     } on SocketException catch (e) {
       Helpers.hideLoader(loader);
-      // showToast("No Internet Access");
+      ApiLogger.logError(method: 'POST', url: url, error: 'No internet access ($e)');
       throw Exception(e);
     } catch (e) {
       Helpers.hideLoader(loader);
+      ApiLogger.logError(method: 'POST', url: url, error: e);
       throw Exception(e);
     }
   }
@@ -83,7 +248,6 @@ class Repositories {
   Future<dynamic> putApi({
     BuildContext? context,
     required String url,
-    // bool? showLoader = false,
     bool? showMap = false,
     Function(int status, String response)? withStatus,
     bool? showResponse = true,
@@ -97,16 +261,15 @@ class Repositories {
 
     try {
       final Map<String, String> headers =
-      await ManageTokens.getHttpHeadersWithToken();
+          await ManageTokens.getHttpHeadersWithToken();
       mapData ??= {};
 
-      if (kDebugMode) {
-        log("API Url.....  $url");
-        log("API mapData.....  $mapData");
-        if (true) {
-          log("API headers.....  $headers");
-        }
-      }
+      ApiLogger.logRequest(
+        method: 'PUT',
+        url: url,
+        body: mapData,
+        headers: headers,
+      );
 
       http.Response response = await http.put(
         Uri.parse(url),
@@ -114,41 +277,41 @@ class Repositories {
         headers: headers,
       );
 
-      if (kDebugMode) {
-        if (showResponse == true) {
-          log("API Response Url........  $url");
-          log("API Response........  ${response.body}");
-          log("API Response Status Code........  ${response.statusCode}");
-          log("API Response Reason Phrase........  ${response.reasonPhrase}");
-        }
-      }
-
       Helpers.hideLoader(loader);
 
-      if (response.statusCode == 200 ||
-          response.statusCode == 404 ||
+      ApiLogger.logResponse(
+        method: 'PUT',
+        url: url,
+        statusCode: response.statusCode,
+        responseBody: response.body,
+      );
+
+      if (_is404(response.statusCode, response.body)) {
+        if (withStatus != null) {
+          withStatus(response.statusCode, response.body);
+        }
+        await handleNotFound404();
+        return null;
+      } else if (response.statusCode == 200 ||
           response.statusCode == 400 ||
           response.statusCode == 201) {
-        log("WWWWWWWWWWW>>>${response.statusCode.toString()}");
         if (withStatus != null) {
           withStatus(response.statusCode, response.body);
         }
         return response.body;
-      }  else if (response.statusCode == 401 && response.body == "Unauthorized") {
-        // Get.offAll(AccountTypeScreen());
-        logOutUser();
+      } else if (response.statusCode == 401 && response.body == "Unauthorized") {
+        await logOutUser();
+        return response.body;
       } else {
-        // showToast(response.body);
         return response.body;
       }
     } on SocketException catch (e) {
-      log("WWWWWWWWWWW>>>${e.toString()}");
       Helpers.hideLoader(loader);
-      //showToast("No Internet Access");
+      ApiLogger.logError(method: 'PUT', url: url, error: 'No internet access ($e)');
       throw Exception(e);
     } catch (e) {
-      log("WWWWWWWWWWW>>>${e.toString()}");
       Helpers.hideLoader(loader);
+      ApiLogger.logError(method: 'PUT', url: url, error: e);
       throw Exception(e);
     }
   }
@@ -156,7 +319,6 @@ class Repositories {
   Future<dynamic> patchApi({
     BuildContext? context,
     required String url,
-    // bool? showLoader = false,
     bool? showMap = false,
     Function(int status, String response)? withStatus,
     bool? showResponse = true,
@@ -170,16 +332,15 @@ class Repositories {
 
     try {
       final Map<String, String> headers =
-      await ManageTokens.getHttpHeadersWithToken();
+          await ManageTokens.getHttpHeadersWithToken();
       mapData ??= {};
 
-      if (kDebugMode) {
-        log("API Url.....  $url");
-        log("API mapData.....  $mapData");
-        if (true) {
-          log("API headers.....  $headers");
-        }
-      }
+      ApiLogger.logRequest(
+        method: 'PATCH',
+        url: url,
+        body: mapData,
+        headers: headers,
+      );
 
       http.Response response = await http.patch(
         Uri.parse(url),
@@ -187,38 +348,41 @@ class Repositories {
         headers: headers,
       );
 
-      if (kDebugMode) {
-        if (showResponse == true) {
-          log("API Response Url........  $url");
-          log("API Response........  ${response.body}");
-          log("API Response Status Code........  ${response.statusCode}");
-          log("API Response Reason Phrase........  ${response.reasonPhrase}");
-        }
-      }
-
       Helpers.hideLoader(loader);
 
-      if (response.statusCode == 200 ||
-          response.statusCode == 404 ||
+      ApiLogger.logResponse(
+        method: 'PATCH',
+        url: url,
+        statusCode: response.statusCode,
+        responseBody: response.body,
+      );
+
+      if (_is404(response.statusCode, response.body)) {
+        if (withStatus != null) {
+          withStatus(response.statusCode, response.body);
+        }
+        await handleNotFound404();
+        return null;
+      } else if (response.statusCode == 200 ||
           response.statusCode == 400 ||
           response.statusCode == 201) {
         if (withStatus != null) {
           withStatus(response.statusCode, response.body);
         }
         return response.body;
-      }  else if (response.statusCode == 401 && response.body == "Unauthorized") {
-        // Get.offAll(AccountTypeScreen());
-        logOutUser();
+      } else if (response.statusCode == 401 && response.body == "Unauthorized") {
+        await logOutUser();
+        return response.body;
       } else {
-        // showToast(response.body);
         return response.body;
       }
     } on SocketException catch (e) {
       Helpers.hideLoader(loader);
-      // showToast("No Internet Access");
+      ApiLogger.logError(method: 'PATCH', url: url, error: 'No internet access ($e)');
       throw Exception(e);
     } catch (e) {
       Helpers.hideLoader(loader);
+      ApiLogger.logError(method: 'PATCH', url: url, error: e);
       throw Exception(e);
     }
   }
@@ -226,7 +390,6 @@ class Repositories {
   Future<dynamic> deleteApi({
     BuildContext? context,
     required String url,
-    // bool? showLoader = false,
     bool? showMap = false,
     Function(int status, String response)? withStatus,
     bool? showResponse = true,
@@ -240,16 +403,15 @@ class Repositories {
 
     try {
       final Map<String, String> headers =
-      await ManageTokens.getHttpHeadersWithToken();
+          await ManageTokens.getHttpHeadersWithToken();
       mapData ??= {};
 
-      if (kDebugMode) {
-        log("API Url.....  $url");
-        log("API mapData.....  $mapData");
-        if (true) {
-          log("API headers.....  $headers");
-        }
-      }
+      ApiLogger.logRequest(
+        method: 'DELETE',
+        url: url,
+        body: mapData,
+        headers: headers,
+      );
 
       http.Response response = await http.delete(
         Uri.parse(url),
@@ -257,43 +419,80 @@ class Repositories {
         headers: headers,
       );
 
-      if (kDebugMode) {
-        if (showResponse == true) {
-          log("API Response Url........  $url");
-          log("API Response........  ${response.body}");
-          log("API Response Status Code........  ${response.statusCode}");
-          log("API Response Reason Phrase........  ${response.reasonPhrase}");
-        }
-      }
-
       Helpers.hideLoader(loader);
 
-      if (response.statusCode == 200 ||
-          response.statusCode == 404 ||
+      ApiLogger.logResponse(
+        method: 'DELETE',
+        url: url,
+        statusCode: response.statusCode,
+        responseBody: response.body,
+      );
+
+      if (_is404(response.statusCode, response.body)) {
+        if (withStatus != null) {
+          withStatus(response.statusCode, response.body);
+        }
+        await handleNotFound404();
+        return null;
+      } else if (response.statusCode == 200 ||
           response.statusCode == 400 ||
           response.statusCode == 201) {
         if (withStatus != null) {
           withStatus(response.statusCode, response.body);
         }
         return response.body;
-      }  else if (response.statusCode == 401 && response.body == "Unauthorized") {
-        // Get.offAll(AccountTypeScreen());
-        logOutUser();
+      } else if (response.statusCode == 401 && response.body == "Unauthorized") {
+        await logOutUser();
+        return response.body;
       } else {
-        // showToast(response.body);
         return response.body;
       }
     } on SocketException catch (e) {
       Helpers.hideLoader(loader);
-      // showToast("No Internet Access");
+      ApiLogger.logError(method: 'DELETE', url: url, error: 'No internet access ($e)');
       throw Exception(e);
     } catch (e) {
       Helpers.hideLoader(loader);
+      ApiLogger.logError(method: 'DELETE', url: url, error: e);
       throw Exception(e);
     }
   }
 
   Future<dynamic> getApi({
+    BuildContext? context,
+    required String url,
+    bool? showMap = true,
+    bool? showResponse = true,
+    bool? returnResponse = false,
+    bool? saveToLocal = false,
+    dynamic mapData,
+  }) async {
+    // In-flight deduplication: If an identical GET request is already pending, reuse its Future
+    final String dedupeKey = "GET:$url:${mapData != null ? jsonEncode(mapData) : ''}";
+    if (_inFlightGetRequests.containsKey(dedupeKey)) {
+      ApiLogger.logDeduplicated(method: 'GET', url: url);
+      return await _inFlightGetRequests[dedupeKey]!;
+    }
+
+    final future = _executeGetApi(
+      context: context,
+      url: url,
+      showMap: showMap,
+      showResponse: showResponse,
+      returnResponse: returnResponse,
+      saveToLocal: saveToLocal,
+      mapData: mapData,
+    );
+
+    _inFlightGetRequests[dedupeKey] = future;
+    try {
+      return await future;
+    } finally {
+      _inFlightGetRequests.remove(dedupeKey);
+    }
+  }
+
+  Future<dynamic> _executeGetApi({
     BuildContext? context,
     required String url,
     bool? showMap = true,
@@ -309,71 +508,58 @@ class Repositories {
 
     try {
       final Map<String, String> headers =
-      await ManageTokens.getHttpHeadersWithToken();
+          await ManageTokens.getHttpHeadersWithToken();
       mapData ??= {};
 
-      // if (kDebugMode) {
-      print("API Url.....  $url");
-      print("API headers.....  $headers");
-      print("Map Data.....  $mapData");
-      // }
-
-      // http.Response response = await http.get(Uri.parse(url), headers: headers);
+      ApiLogger.logRequest(
+        method: 'GET',
+        url: url,
+        body: mapData is Map<String, dynamic> ? mapData : null,
+        headers: headers,
+      );
 
       var request = http.Request('GET', Uri.parse(url));
-      if (mapData != null) {
+      if (mapData != null && mapData is Map && mapData.isNotEmpty) {
         request.body = jsonEncode(mapData);
       }
       request.headers.addAll(headers);
       http.StreamedResponse response = await request.send();
       String response1 = await response.stream.bytesToString();
 
-      // if (kDebugMode) {
-      if (showResponse == true) {
-        log("API Url.....  $url");
-        debugPrint("API Response........  $response1", wrapWidth: 1024);
-        //print("API Response........  $response1");
-        log("API Response Status Code........  ${response.statusCode}");
-        log("API Response Reason Phrase........  ${response.reasonPhrase}");
-        // print("API Response Reason Phrase........  ${response.reasonPhrase}");
-      }
-      // }
-
       Helpers.hideLoader(loader);
+
+      ApiLogger.logResponse(
+        method: 'GET',
+        url: url,
+        statusCode: response.statusCode,
+        responseBody: response1,
+      );
+
       if (returnResponse!) {
         return response;
       } else {
-        if (response.statusCode == 200 ||
+        if (_is404(response.statusCode, response1)) {
+          await handleNotFound404();
+          return null;
+        } else if (response.statusCode == 200 ||
             response.statusCode == 400 ||
-            response.statusCode == 201 ||
-            response.statusCode == 404) {
-          if (saveToLocal == true) {
-            //SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-            //  sharedPreferences.setString(url, response1);
-          }
+            response.statusCode == 201) {
           return response1;
-        }  else if (response.statusCode == 401 && response1.trim() == "Unauthorized") {
-          // Get.offAll(AccountTypeScreen());
-          logOutUser();
-          // throw Exception("Unauthorized");
+        } else if (response.statusCode == 401 && response1.trim() == "Unauthorized") {
+          await logOutUser();
           return response1.toString();
-        }else {
-          // showToast(response.body);
+        } else {
           return response1;
         }
       }
-    } on SocketException {
+    } on SocketException catch (e) {
       Helpers.hideLoader(loader);
-      //  SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-      // if(sharedPreferences.getString(url) != null){
-      //return sharedPreferences.getString(url);
-      //  } else {
-      showSnackBar("No Internet Access", false);
-      throw Exception("No Internet Access");
-      //  }
+      ApiLogger.logError(method: 'GET', url: url, error: 'No internet access ($e)');
+      showSnackBar("Please check your internet connection", false);
+      throw Exception("Please check your internet connection");
     } catch (e) {
       Helpers.hideLoader(loader);
-      // showToast(e.toString());
+      ApiLogger.logError(method: 'GET', url: url, error: e);
       throw Exception(e);
     }
   }
@@ -394,6 +580,7 @@ class Repositories {
     try {
       final Map<String, String> headers =
       await ManageTokens.getHttpHeadersWithToken();
+      headers.removeWhere((key, value) => key.toLowerCase() == 'content-type');
       mapData ??= {};
       images.removeWhere((key, value) => !value.existsSync());
       var request = CloseableMultipartRequest(
@@ -428,14 +615,17 @@ class Repositories {
       log("Api Response.....      $value");
       log(response.statusCode.toString());
       Helpers.hideLoader(loader);
-      if (response.statusCode == 200) {
-        return value;
-      }  else if (response.statusCode == 401 && value.trim() == "Unauthorized") {
+      if (_is404(response.statusCode, value)) {
         Helpers.hideLoader(loader);
-        // Get.offAll(AccountTypeScreen());
-        logOutUser();
+        await handleNotFound404();
+        return null;
+      } else if (response.statusCode == 200) {
+        return value;
+      } else if (response.statusCode == 401 && value.trim() == "Unauthorized") {
+        Helpers.hideLoader(loader);
+        await logOutUser();
         return value.toString();
-      }else {
+      } else {
         Helpers.hideLoader(loader);
         throw Exception(value);
       }
@@ -466,6 +656,7 @@ class Repositories {
     try {
       final Map<String, String> headers =
       await ManageTokens.getHttpHeadersWithToken();
+      headers.removeWhere((key, value) => key.toLowerCase() == 'content-type');
       mapData ??= {};
       images.removeWhere((key, value) => !value.existsSync());
       var request = CloseableMultipartRequest(
@@ -500,14 +691,15 @@ class Repositories {
       log("Api Response.....      $value");
       log(response.statusCode.toString());
       Helpers.hideLoader(loader);
-      if (response.statusCode == 200) {
-        return value;
-      }  else if (response.statusCode == 401 && value.trim() == "Unauthorized") {
-        // Get.offAll(AccountTypeScreen());
+      if (_is404(response.statusCode, value)) {
         Helpers.hideLoader(loader);
-        // Get.offAll(AccountTypeScreen());
-        logOutUser();
-        // throw Exception("Unauthorized");
+        await handleNotFound404();
+        return null;
+      } else if (response.statusCode == 200) {
+        return value;
+      } else if (response.statusCode == 401 && value.trim() == "Unauthorized") {
+        Helpers.hideLoader(loader);
+        await logOutUser();
         return value.toString();
       } else {
         Helpers.hideLoader(loader);
@@ -543,6 +735,7 @@ class Repositories {
     try {
       final Map<String, String> headers =
       await ManageTokens.getHttpHeadersWithToken();
+      headers.removeWhere((key, value) => key.toLowerCase() == 'content-type');
       mapData ??= {};
       images.removeWhere((key, value) => !value.existsSync());
       var request = CloseableMultipartRequest(
@@ -577,12 +770,14 @@ class Repositories {
       log("Api Response.....      $value");
       log(response.statusCode.toString());
       Helpers.hideLoader(loader);
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (_is404(response.statusCode, value)) {
+        Helpers.hideLoader(loader);
+        await handleNotFound404();
+        return null;
+      } else if (response.statusCode == 200 || response.statusCode == 201) {
         return value;
       } else if (response.statusCode == 401 && value.trim() == "Unauthorized") {
-        logOutUser();
-        // Get.offAll(AccountTypeScreen());
-        // throw Exception(value);
+        await logOutUser();
       } else {
         Helpers.hideLoader(loader);
         throw Exception(value);
@@ -611,16 +806,34 @@ class Repositories {
   }
 
   Future<void> logOutUser() async {
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    await sharedPreferences.clear();
-    // Get.offAllNamed(LoginScreen.loginScreen);
+    await ManageTokens.clearAllAuthSession();
+    if (Get.currentRoute != MyRouters.loginScreen) {
+      if (WidgetsBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (Get.currentRoute != MyRouters.loginScreen) {
+            Get.offAllNamed(MyRouters.loginScreen);
+          }
+        });
+      } else {
+        Get.offAllNamed(MyRouters.loginScreen);
+      }
+    }
   }
 }
 
 Future<void> signOut() async {
-  SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-  await sharedPreferences.clear();
-  // Get.offAllNamed(LoginScreen.loginScreen);
+  await ManageTokens.clearAllAuthSession();
+  if (Get.currentRoute != MyRouters.loginScreen) {
+    if (WidgetsBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (Get.currentRoute != MyRouters.loginScreen) {
+          Get.offAllNamed(MyRouters.loginScreen);
+        }
+      });
+    } else {
+      Get.offAllNamed(MyRouters.loginScreen);
+    }
+  }
 }
 
 class CloseableMultipartRequest extends http.MultipartRequest {

@@ -61,8 +61,11 @@ class _ReferralRewardsScreenState extends State<ReferralRewardsScreen> {
 
         final data = _profileController.referralData.value;
         final referralCode = data?.referralCode ?? "----";
-        final totalEarnings = data?.totalEarnings?.toInt() ?? 0;
-        final referredCount = data?.referredCount ?? 0;
+        final totalCoins = data?.totalCoins ?? 0;
+        final totalRewards = data?.totalRewards ?? 0;
+        final totalReferral = data?.totalReferral ?? 0;
+        final successfulReferral = data?.successfulReferral ?? 0;
+        final referralThisMonth = data?.referralThisMonth ?? 0;
         final referralsList = data?.referrals ?? [];
 
         return RefreshIndicator(
@@ -75,13 +78,18 @@ class _ReferralRewardsScreenState extends State<ReferralRewardsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 24),
-                  _buildCoinsHeader(totalEarnings),
+                  _buildCoinsHeader(totalCoins),
                   const SizedBox(height: 32),
                   _buildReferralCodeBox(referralCode),
                   const SizedBox(height: 24),
                   _buildReferFriendButton(referralCode),
                   const SizedBox(height: 32),
-                  _buildStatsRow(referredCount, totalEarnings),
+                  _buildStatsGrid(
+                    totalReferral: totalReferral,
+                    successfulReferral: successfulReferral,
+                    referralThisMonth: referralThisMonth,
+                    totalRewards: totalRewards,
+                  ),
                   const SizedBox(height: 32),
                   _buildTransactionsSection(referralsList),
                 ],
@@ -93,7 +101,7 @@ class _ReferralRewardsScreenState extends State<ReferralRewardsScreen> {
     );
   }
 
-  Widget _buildCoinsHeader(int totalEarnings) {
+  Widget _buildCoinsHeader(int totalCoins) {
     return Column(
       children: [
         Text(AppString.totalCoins.tr, style: AppFonts.regularText.copyWith(color: AppTheme.textGrey500, fontSize: 14)),
@@ -101,9 +109,9 @@ class _ReferralRewardsScreenState extends State<ReferralRewardsScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.monetization_on, color: Colors.amber, size: 28),
+            const Icon(Icons.currency_rupee, color: Colors.amber, size: 28),
             const SizedBox(width: 8),
-            Text(totalEarnings.toString(), style: AppFonts.titleStyle.copyWith(fontSize: 32)),
+            Text(totalCoins.toString(), style: AppFonts.titleStyle.copyWith(fontSize: 32)),
           ],
         ),
       ],
@@ -169,25 +177,40 @@ class _ReferralRewardsScreenState extends State<ReferralRewardsScreen> {
     );
   }
 
-  Widget _buildStatsRow(int referredCount, int totalEarnings) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildStatColumn(referredCount.toString(), AppString.referrals.tr),
-        Container(height: 40, width: 1, color: AppTheme.fieldBorderColor),
-        _buildStatColumn(referredCount.toString(), AppString.rewards.tr),
-        Container(height: 40, width: 1, color: AppTheme.fieldBorderColor),
-        _buildStatColumn(totalEarnings.toString(), AppString.totalCoins.tr),
-      ],
+  Widget _buildStatsGrid({
+    required int totalReferral,
+    required int successfulReferral,
+    required int referralThisMonth,
+    required int totalRewards,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.fieldBorderColor),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatColumn(totalReferral.toString(), AppString.referrals.tr),
+          Container(height: 36, width: 1, color: AppTheme.fieldBorderColor),
+          _buildStatColumn(successfulReferral.toString(), "Successful"),
+          Container(height: 36, width: 1, color: AppTheme.fieldBorderColor),
+          _buildStatColumn(referralThisMonth.toString(), "This Month"),
+          Container(height: 36, width: 1, color: AppTheme.fieldBorderColor),
+          _buildStatColumn(totalRewards.toString(), AppString.rewards.tr),
+        ],
+      ),
     );
   }
 
   Widget _buildStatColumn(String value, String label) {
     return Column(
       children: [
-        Text(value, style: AppFonts.semiBoldText.copyWith(fontSize: 18)),
+        Text(value, style: AppFonts.semiBoldText.copyWith(fontSize: 16)),
         const SizedBox(height: 4),
-        Text(label, style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500)),
+        Text(label, style: AppFonts.regularText.copyWith(fontSize: 11, color: AppTheme.textGrey500)),
       ],
     );
   }
@@ -220,9 +243,12 @@ class _ReferralRewardsScreenState extends State<ReferralRewardsScreen> {
                 itemCount: referralsList.length,
                 itemBuilder: (context, index) {
                   final item = referralsList[index];
-                  final name = item.name ?? item.phone ?? item.email ?? "Friend";
+                  final name = item.name ?? item.phone ?? item.email ?? item.title ?? "Friend";
                   final date = _formatDate(item.createdAt);
-                  return _buildCoinTransaction("Refer to $name", date, "+50 Coins");
+                  final coinsEarned = item.coins != null && item.coins > 0 
+                      ? "+${item.coins} Coins" 
+                      : (item.amount != null && item.amount > 0 ? "+${item.amount} Coins" : "+0 Coins");
+                  return _buildCoinTransaction("Referral: $name", date, coinsEarned);
                 },
               ),
       ],

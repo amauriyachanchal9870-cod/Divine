@@ -10,13 +10,11 @@ class NotificationController extends GetxController {
   var notifications = <NotificationData>[].obs;
   var errorMessage = ''.obs;
 
-  @override
-  void onInit() {
-    super.onInit();
-    fetchNotifications();
-  }
 
-  Future<void> fetchNotifications() async {
+  Future<void> fetchNotifications({bool forceRefresh = false}) async {
+    if (isLoading.value) return;
+    if (!forceRefresh && notifications.isNotEmpty) return;
+
     try {
       isLoading.value = true;
       errorMessage.value = '';

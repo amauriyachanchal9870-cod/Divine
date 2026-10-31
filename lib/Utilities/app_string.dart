@@ -74,7 +74,13 @@ class AppString extends GetxController{
   static String donateNow = "donateNow";
   static String topNGOs = "topNGOs";
   static String follow = "follow";
+  static String followingFollowers = "followingFollowers";
+  static String socialNetwork = "socialNetwork";
   static String donationHistory = "donationHistory";
+  static String recentDonorTransaction = "recentDonorTransaction";
+  static String pressAndMedia = "pressAndMedia";
+  static String viewAllButton = "viewAllButton";
+  static String noPressMediaAvailable = "noPressMediaAvailable";
   static String wallet = "wallet";
   static String profile = "profile";
   static String search = "search";
@@ -193,6 +199,7 @@ class AppString extends GetxController{
   static String activities = "Activities";
   static String createCampaign = "createCampaign";
   static String activeCampaigns = "activeCampaigns";
+  static String myCampaigns = "myCampaigns";
   static String followingNgos = "followingNgos";
   static String infoSupport = "infoSupport";
   static String settings = "settings";
@@ -226,10 +233,15 @@ class AppString extends GetxController{
   static String deactivateWarning = "deactivateWarning";
   static String reasonForDeactivation = "reasonForDeactivation";
   static String deactivateAccountButton = "deactivateAccountButton";
+  static String deleteAccount = "deleteAccount";
+  static String deleteWarning = "deleteWarning";
+  static String reasonForDeletion = "reasonForDeletion";
+  static String deleteAccountButton = "deleteAccountButton";
   static String cancel = "cancel";
   static String delete = "delete";
   static String deactivate = "Deactivate";
   static String areYouSureDeactivate = "areYouSureDeactivate";
+  static String areYouSureDelete = "areYouSureDelete";
   static String smsNotification = "smsNotification";
   static String emailNotification = "emailNotification";
   static String inactiveAccount = "inactiveAccount";
@@ -521,12 +533,18 @@ class AppTranslations extends Translations {
       'clothes': 'Clothes',
       'donate': 'Donate',
       'raise': 'Raise',
-      'ongoingCampaigns': 'ONGOING CAMPAIGNS',
+      'ongoingCampaigns': 'Ongoing Campaigns',
       'seeAll': 'See All',
       'donateNow': 'Donate Now',
       'topNGOs': 'Top NGOs',
       'follow': 'Follow',
+      'followingFollowers': 'Following & Followers',
+      'socialNetwork': 'Social Network',
       'donationHistory': 'Donation History',
+      'recentDonorTransaction': 'Recent Donor Transactions',
+      'pressAndMedia': 'Press & Media',
+      'viewAllButton': 'View All',
+      'noPressMediaAvailable': 'No press & media available',
       'wallet': 'Wallet',
       'profile': 'Profile',
       'search': 'Search',
@@ -644,6 +662,7 @@ class AppTranslations extends Translations {
       'Activities': 'Activities',
       'createCampaign': 'Create Campaign',
       'activeCampaigns': 'Active Campaigns',
+      'myCampaigns': 'My Campaigns',
       'followingNgos': 'Following NGOs',
       'infoSupport': 'Info & Support',
       'settings': 'Settings',
@@ -673,13 +692,18 @@ class AppTranslations extends Translations {
       'accountSettings': 'Account Settings',
       'pushNotification': 'Push Notification',
       'darkMode': 'Dark Mode',
-      'deactivateAccount': 'Deactivate Account',
-      'deactivateWarning': 'By deactivating your account, your profile and content will be temporarily hidden. You can reactivate anytime by logging in again.',
-      'reasonForDeactivation': 'Reason for deactivation',
-      'deactivateAccountButton': 'Deactivate Account',
+      'deactivateAccount': 'Delete Account',
+      'deactivateWarning': 'By deleting your account, your profile and content will be permanently deleted.',
+      'reasonForDeactivation': 'Reason for deletion',
+      'deactivateAccountButton': 'Delete Account',
+      'deleteAccount': 'Delete Account',
+      'deleteWarning': 'By deleting your account, your profile and content will be permanently deleted.',
+      'reasonForDeletion': 'Reason for deletion',
+      'deleteAccountButton': 'Delete Account',
       'cancel': 'Cancel',
       'delete': 'Delete',
-      'areYouSureDeactivate': 'Are you sure you want to deactivate your account?',
+      'areYouSureDeactivate': 'Are you sure you want to delete your account?',
+      'areYouSureDelete': 'Are you sure you want to delete your account?',
       'smsNotification': 'SMS Notification',
       'emailNotification': 'Email Notification',
       'inactiveAccount': 'Inactive Account',
@@ -924,6 +948,9 @@ class AppTranslations extends Translations {
       'campaignDetails': 'Detalles de la Campaña',
       'campaignDescription': 'Descripción de la Campaña',
       'recentDonors': 'Donantes Recientes',
+      'pressAndMedia': 'Prensa y Medios',
+      'viewAllButton': 'Ver todo',
+      'noPressMediaAvailable': 'No hay prensa ni medios disponibles',
       'chooseDonationAmount': 'Elija la Cantidad de Donación',
       'customAmount': 'Cantidad Personalizada',
       'enterYourAmount': 'Ingrese su cantidad',
@@ -1215,6 +1242,9 @@ class AppTranslations extends Translations {
       'campaignDetails': 'Детали Кампании',
       'campaignDescription': 'Описание Кампании',
       'recentDonors': 'Недавние Доноры',
+      'pressAndMedia': 'Пресса и СМИ',
+      'viewAllButton': 'Показать все',
+      'noPressMediaAvailable': 'Пресса и СМИ отсутствуют',
       'chooseDonationAmount': 'Выберите Сумму Пожертвования',
       'customAmount': 'Другая Сумма',
       'enterYourAmount': 'Введите вашу сумму',

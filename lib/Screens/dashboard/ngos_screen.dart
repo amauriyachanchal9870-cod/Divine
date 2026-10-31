@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import '../../Widget/shimmer_widget.dart';
 import '../../Controller/home_controller.dart';
 import '../../Utilities/app_theme.dart';
@@ -21,6 +22,12 @@ class _NgosScreenState extends State<NgosScreen> {
   final HomeController homeController = Get.find<HomeController>();
   final FollowsController followsController = Get.put(FollowsController());
   String searchQuery = "";
+
+  @override
+  void initState() {
+    super.initState();
+    homeController.fetchDonorNgos();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +55,14 @@ class _NgosScreenState extends State<NgosScreen> {
           const SizedBox(height: 8),
           Expanded(
             child: Obx(() {
+              if (homeController.isDonorNgosLoading.value && homeController.donorNgosList.isEmpty) {
+                return Center(
+                  child: LoadingAnimationWidget.threeRotatingDots(
+                    color: AppTheme.primaryDeepBlue,
+                    size: 50,
+                  ),
+                );
+              }
               final allNgos = homeController.ngos;
               
               final filteredNgos = allNgos.where((ngo) {
@@ -96,7 +111,7 @@ class _NgosScreenState extends State<NgosScreen> {
                   crossAxisCount: 2,
                   crossAxisSpacing: 14,
                   mainAxisSpacing: 14,
-                  childAspectRatio: 0.73,
+                  childAspectRatio: 0.9,
                 ),
                 itemCount: filteredNgos.length,
                 itemBuilder: (context, index) {
@@ -143,43 +158,44 @@ class _NgosScreenState extends State<NgosScreen> {
                                           fit: BoxFit.cover,
                                           placeholder: (c, u) => const ShimmerWidget(width: 72, height: 72, borderRadius: BorderRadius.all(Radius.circular(36))),
                                           errorWidget: (c, u, e) => Image.asset(
-                                            AppAssets.ngoLogo,
+                                            AppAssets.appLogo,
                                             fit: BoxFit.cover,
                                           ),
                                         ),
                                       )
                                     : ClipOval(
                                         child: Image.asset(
-                                          AppAssets.ngoLogo,
+                                          AppAssets.appLogo,
                                           fit: BoxFit.cover,
                                         ),
                                       ),
                               ),
-                              Positioned(
-                                bottom: -8,
-                                left: 0,
-                                right: 0,
-                                child: Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.progressGreen,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.star, color: Colors.white, size: 10),
-                                        const SizedBox(width: 2),
-                                        Text(
-                                          '${ngo.rating ?? 4.5}', 
-                                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)
-                                        ),
-                                      ],
+                              if (ngo.rating != null && ngo.rating! > 0.0)
+                                Positioned(
+                                  bottom: -10,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.progressGreen,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.star, color: Colors.white, size: 10),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            '${ngo.rating}',
+                                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -191,13 +207,13 @@ class _NgosScreenState extends State<NgosScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            ngo.impactStats ?? 'Active Impact',
-                            style: AppFonts.regularText.copyWith(fontSize: 10, color: AppTheme.textGrey500),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          // Text(
+                          //   ngo.impactStats ?? 'Active Impact',
+                          //   style: AppFonts.regularText.copyWith(fontSize: 10, color: AppTheme.textGrey500),
+                          //   textAlign: TextAlign.center,
+                          //   maxLines: 1,
+                          //   overflow: TextOverflow.ellipsis,
+                          // ),
                           const Spacer(),
                           Obx(() {
                             final isFollowedLocal = followsController.isNgoFollowed(ngo.id ?? '');

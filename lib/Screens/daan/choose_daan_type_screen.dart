@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../Controller/daan_controller.dart';
+import '../../Controller/banner_controller.dart';
+import '../../Widget/banner_slider_widget.dart';
 import '../../Model/dan_categories_model.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
@@ -15,25 +17,30 @@ class ChooseDaanTypeScreen extends StatelessWidget {
   String getCategoryFallbackAsset(String? categoryId) {
     switch (categoryId) {
       case 'CAT-FOOD':
-        return AppAssets.danFood;
+        return AppAssets.appLogo;
       case 'CAT-CLOTHES':
-        return AppAssets.danClothes;
+        return AppAssets.appLogo;
       case 'CAT-GAU':
-        return AppAssets.danGau;
+        return AppAssets.appLogo;
       case 'CAT-NGO':
-        return AppAssets.danNgo;
+        return AppAssets.appLogo;
       case 'CAT-BOOKS':
         return AppAssets.danBooks;
       case 'CAT-TEMPLE':
-        return AppAssets.danTemple;
+        return AppAssets.appLogo;
       default:
-        return AppAssets.danFood;
+        return AppAssets.appLogo;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final DaanController controller = Get.put(DaanController());
+    final BannerController bannerController = Get.isRegistered<BannerController>()
+        ? Get.find<BannerController>()
+        : Get.put(BannerController());
+
+    bannerController.fetchBanners('daan_category');
 
     // Reset search query when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -69,19 +76,49 @@ class ChooseDaanTypeScreen extends StatelessWidget {
         final bottomBanner = controller.bottomBanners.isNotEmpty ? controller.bottomBanners.first : null;
 
         return RefreshIndicator(
-          onRefresh: () => controller.fetchDaanCategories(),
+          onRefresh: () async {
+            await controller.fetchDaanCategories();
+            await bannerController.fetchBanners('daan_category', forceRefresh: true);
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Column(
               children: [
                 _buildSearchBar(controller),
-                const SizedBox(height: 12),
-                _buildSlidingBanner(topBanner, AppString.everyContributionCreatesImpact.tr),
-                const SizedBox(height: 20),
+                Obx(() {
+                  final topBanners = bannerController.getTopBanners('daan_category');
+                  if (topBanners.isNotEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 12, bottom: 20),
+                      child: BannerSliderWidget(banners: topBanners),
+                    );
+                  }
+                  if (topBanner != null) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 12, bottom: 20),
+                      child: _buildSlidingBanner(topBanner, AppString.everyContributionCreatesImpact.tr),
+                    );
+                  }
+                  return const SizedBox(height: 16);
+                }),
                 _buildDaanGrid(controller),
-                const SizedBox(height: 24),
-                _buildSlidingBanner(bottomBanner, "Every Act of Giving Creates a Ripple of Hope"),
+                Obx(() {
+                  final bottomBanners = bannerController.getBottomBanners('daan_category');
+                  if (bottomBanners.isNotEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 24),
+                      child: BannerSliderWidget(banners: bottomBanners),
+                    );
+                  }
+                  if (bottomBanner != null) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 24),
+                      child: _buildSlidingBanner(bottomBanner, "Every Act of Giving Creates a Ripple of Hope"),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }),
                 const SizedBox(height: 24),
               ],
             ),
@@ -115,8 +152,9 @@ class ChooseDaanTypeScreen extends StatelessWidget {
   }
 
   Widget _buildSlidingBanner(DanBannerItem? banner, String defaultTitle) {
-    final String title = banner?.title ?? defaultTitle;
-    final String? imageUrl = banner?.imageUrl;
+    if (banner == null) return const SizedBox.shrink();
+    final String title = banner.title ?? defaultTitle;
+    final String? imageUrl = banner.imageUrl;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -198,14 +236,14 @@ class ChooseDaanTypeScreen extends StatelessWidget {
                     height: 70,
                     fit: BoxFit.cover,
                     errorBuilder: (c, e, s) => Image.asset(
-                      AppAssets.donateAndFund,
+                      AppAssets.appLogo,
                       width: 70,
                       height: 70,
                       fit: BoxFit.contain,
                     ),
                   )
                 : Image.asset(
-                    AppAssets.donateAndFund,
+                    AppAssets.appLogo,
                     width: 70,
                     height: 70,
                     fit: BoxFit.contain,
@@ -268,22 +306,49 @@ class ChooseDaanTypeScreen extends StatelessWidget {
                   Expanded(
                     child: ClipRRect(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                      child: item.imageUrl != null
-                          ? Image.network(
-                              item.imageUrl!,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (c, e, s) => Image.asset(
+                      child: Container(
+                        width: double.infinity,
+                        height: double.infinity,
+                        color: const Color(0xFFF8FAFC),
+                        alignment: Alignment.center,
+                        child: (item.imageUrl != null && item.imageUrl!.trim().isNotEmpty)
+                            ? Image.network(
+                                item.imageUrl!.trim(),
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          AppTheme.primaryDeepBlue.withValues(alpha: 0.3),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (c, e, s) => Image.asset(
+                                  fallbackAsset,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fit: BoxFit.contain,
+                                  alignment: Alignment.center,
+                                ),
+                              )
+                            : Image.asset(
                                 fallbackAsset,
                                 width: double.infinity,
-                                fit: BoxFit.cover,
+                                height: double.infinity,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
                               ),
-                            )
-                          : Image.asset(
-                              fallbackAsset,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
+                      ),
                     ),
                   ),
                   Padding(

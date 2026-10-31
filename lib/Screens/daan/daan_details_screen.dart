@@ -130,25 +130,49 @@ class _DaanDetailsScreenState extends State<DaanDetailsScreen> {
           // Banner image
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: item.imageUrl != null
-                ? Image.network(
-                    item.imageUrl!,
-                    height: 140,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => Image.asset(
-                      AppAssets.campaignImage,
+            child: Container(
+              height: 140,
+              width: double.infinity,
+              color: const Color(0xFFF8FAFC),
+              alignment: Alignment.center,
+              child: (item.imageUrl != null && item.imageUrl!.trim().isNotEmpty)
+                  ? Image.network(
+                      item.imageUrl!.trim(),
                       height: 140,
                       width: double.infinity,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppTheme.primaryDeepBlue.withValues(alpha: 0.3),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (c, e, s) => Image.asset(
+                        AppAssets.appLogo,
+                        height: 140,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                      ),
+                    )
+                  : Image.asset(
+                      AppAssets.appLogo,
+                      height: 140,
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
                     ),
-                  )
-                : Image.asset(
-                    AppAssets.campaignImage,
-                    height: 140,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(12.0),

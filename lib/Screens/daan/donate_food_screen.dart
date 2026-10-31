@@ -3,8 +3,8 @@ import 'package:get/get.dart';
 import '../../Model/dan_categories_model.dart';
 import '../../Model/dan_subcategories_model.dart';
 import '../../Utilities/app_theme.dart';
-import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Utilities/app_assets.dart';
 import '../../Controller/daan_controller.dart';
 import '../../Routes/my_routes.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
@@ -26,25 +26,22 @@ class _DonateFoodScreenState extends State<DonateFoodScreen> {
     controller = Get.find<DaanController>();
     category = Get.arguments as DanCategoryData?;
 
-    // Fetch subcategories using the category's MongoDB _id
-    if (category?.id != null) {
+    final String catId = category?.categoryId ?? category?.id ?? '';
+    if (catId.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        controller.fetchDaanSubCategories(category!.id!);
+        controller.fetchDaanSubCategories(catId);
       });
     }
   }
 
-  String getFallbackAsset(String? subcategoryId) {
-    switch (subcategoryId) {
-      case 'SUB-SAINTS':
-        return AppAssets.campaignImage;
-      case 'SUB-DRY-RATION':
-        return AppAssets.campaignImage;
-      case 'SUB-CHILDREN':
-        return AppAssets.campaignImage;
-      default:
-        return AppAssets.campaignImage;
-    }
+  Widget _buildDaanPlaceholder() {
+    return Image.asset(
+      AppAssets.appLogo,
+      width: 70,
+      height: 70,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+    );
   }
 
   @override
@@ -92,7 +89,7 @@ class _DonateFoodScreenState extends State<DonateFoodScreen> {
                           ),
                         )
                       : RefreshIndicator(
-                          onRefresh: () => controller.fetchDaanSubCategories(category?.id ?? ''),
+                          onRefresh: () => controller.fetchDaanSubCategories(category?.categoryId ?? category?.id ?? ''),
                           child: ListView.builder(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             itemCount: controller.subCategories.length,
@@ -138,25 +135,37 @@ class _DonateFoodScreenState extends State<DonateFoodScreen> {
                 // Image
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: sub.imageUrl != null
-                      ? Image.network(
-                          sub.imageUrl!,
-                          width: 70,
-                          height: 70,
-                          fit: BoxFit.cover,
-                          errorBuilder: (c, e, s) => Image.asset(
-                            getFallbackAsset(sub.subcategoryId),
+                  child: Container(
+                    width: 70,
+                    height: 70,
+                    color: const Color(0xFFF8FAFC),
+                    alignment: Alignment.center,
+                    child: (sub.imageUrl != null && sub.imageUrl!.trim().isNotEmpty)
+                        ? Image.network(
+                            sub.imageUrl!.trim(),
                             width: 70,
                             height: 70,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      : Image.asset(
-                          getFallbackAsset(sub.subcategoryId),
-                          width: 70,
-                          height: 70,
-                          fit: BoxFit.cover,
-                        ),
+                            fit: BoxFit.contain,
+                            alignment: Alignment.center,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppTheme.primaryDeepBlue.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (c, e, s) => _buildDaanPlaceholder(),
+                          )
+                        : _buildDaanPlaceholder(),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 // Title + description + NGO badge

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../Controller/wallet_controller.dart';
+import '../../Controller/profile_controller.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_fonts.dart';
@@ -17,6 +18,17 @@ class WalletScreen extends StatefulWidget {
 
 class _WalletScreenState extends State<WalletScreen> {
   final WalletController controller = Get.put(WalletController());
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.fetchWalletData();
+      if (Get.isRegistered<ProfileController>()) {
+        Get.find<ProfileController>().fetchProfile(context);
+      }
+    });
+  }
 
   String formatDate(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return 'Oct 24, 2025 • 14:30';
@@ -131,7 +143,7 @@ class _WalletScreenState extends State<WalletScreen> {
         centerTitle: false,
       ),
       body: RefreshIndicator(
-        onRefresh: () => controller.fetchWalletData(),
+        onRefresh: () => controller.fetchWalletData(forceRefresh: true),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Padding(
@@ -143,6 +155,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 _buildBalanceCard(),
                 const SizedBox(height: 16),
                 _buildCashbackCard(),
+                const SizedBox(height: 16),
+                _buildCoinsCard(),
                 const SizedBox(height: 20),
                 _buildTogglePill(),
                 const SizedBox(height: 20),
@@ -191,9 +205,9 @@ class _WalletScreenState extends State<WalletScreen> {
                           expiryStr = "Expiry: 14 Jan 2027";
                         }
                         String? bonusStr;
-                        if (isPositive && (t.amount ?? 0) >= 1000) {
-                          bonusStr = "+150 bonus";
-                        }
+                        // if (isPositive && (t.amount ?? 0) >= 1000) {
+                        //   bonusStr = "+150 bonus";
+                        // }
 
                         return _buildTransactionItem(
                           t.item ?? "Transaction",
@@ -220,6 +234,14 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Widget _buildBalanceCard() {
     return Obx(() {
+      double bal = controller.walletBalance.value;
+      if (bal == 0.0 && Get.isRegistered<ProfileController>()) {
+        final pBal = Get.find<ProfileController>().profileData.value?.walletBalance;
+        if (pBal != null && pBal > 0) {
+          bal = pBal;
+        }
+      }
+
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
@@ -248,7 +270,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  "₹ ${formatWalletAmount(controller.walletBalance.value)}",
+                  "₹ ${formatWalletAmount(bal)}",
                   style: AppFonts.titleStyle.copyWith(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
               ],
@@ -276,9 +298,11 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Widget _buildCashbackCard() {
     return Obx(() {
-      double totalCashback = controller.transactions
-          .where((t) => t.item?.toLowerCase().contains('cashback') ?? false)
-          .fold(0.0, (sum, t) => sum + (t.amount ?? 0.0));
+      double totalCashback = controller.cashbackBalance.value > 0
+          ? controller.cashbackBalance.value
+          : controller.transactions
+              .where((t) => t.item?.toLowerCase().contains('cashback') ?? false)
+              .fold(0.0, (sum, t) => sum + (t.amount ?? 0.0));
 
       return Container(
         width: double.infinity,
@@ -317,6 +341,55 @@ class _WalletScreenState extends State<WalletScreen> {
             Text(
               "₹${totalCashback.toStringAsFixed(0)}",
               style: AppFonts.semiBoldText.copyWith(color: Colors.blue, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildCoinsCard() {
+    return Obx(() {
+      int coins = controller.totalCoins.value;
+      double valueInRupees = controller.coinsValueInRupees.value;
+
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.fieldBorderColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.monetization_on_outlined, color: Colors.amber[700], size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppString.totalCoins.tr,
+                    style: AppFonts.semiBoldText.copyWith(fontSize: 14),
+                  ),
+                  Text(
+                    "Value in Rupees: ₹${valueInRupees.toStringAsFixed(2)}",
+                    style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              "$coins",
+              style: AppFonts.semiBoldText.copyWith(color: Colors.amber[800], fontSize: 16),
             ),
           ],
         ),
