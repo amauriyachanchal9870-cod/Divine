@@ -16,6 +16,9 @@ import '../../Model/review_model.dart';
 import '../../Controller/profile_controller.dart';
 import '../../Routes/my_routes.dart';
 import '../../Utilities/helper.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class NgoDetailsScreen extends StatefulWidget {
@@ -252,6 +255,9 @@ class _NgoDetailsScreenState extends State<NgoDetailsScreen> {
                           _buildHeader(data),
                           const SizedBox(height: 16),
                           _buildAboutUsSection(data),
+                          _buildWebsiteUrlSection(data),
+                          _buildHaveYouCrowdfundedSection(data),
+                          _buildPurposeAndCausesSection(data),
                           // _buildCausesSection(data),
                           _buildOrganizationAndLegalSection(data),
                           // _buildStatutoryTaxSection(data),
@@ -290,6 +296,9 @@ class _NgoDetailsScreenState extends State<NgoDetailsScreen> {
                 _buildHeader(data),
                 const SizedBox(height: 16),
                 _buildAboutUsSection(data),
+                _buildWebsiteUrlSection(data),
+                _buildHaveYouCrowdfundedSection(data),
+                _buildPurposeAndCausesSection(data),
                 _buildCausesSection(data),
                 _buildOrganizationAndLegalSection(data),
                 _buildStatutoryTaxSection(data),
@@ -575,9 +584,9 @@ class _NgoDetailsScreenState extends State<NgoDetailsScreen> {
                       if (phone.isNotEmpty)
                         _buildQuickActionChip(
                           icon: Icons.phone_outlined,
-                          label: phone,
+                          label: formatPhoneWithCountryCode(phone),
                           onTap: () {
-                            Clipboard.setData(ClipboardData(text: phone));
+                            Clipboard.setData(ClipboardData(text: formatPhoneWithCountryCode(phone)));
                             showSnackBar("Phone number copied", true);
                           },
                         ),
@@ -687,7 +696,232 @@ class _NgoDetailsScreenState extends State<NgoDetailsScreen> {
   }
 
   // ===========================================================================
-  // 3. CAUSES WE SUPPORT SECTION
+  // 1. WEBSITE URL OF YOUR ORGANIZATION
+  // ===========================================================================
+  Widget _buildWebsiteUrlSection(NgoDetailsData data) {
+    final String url = data.websiteUrl?.trim() ?? '';
+    if (url.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return _buildSectionCard(
+      title: "Website URL of your Organization",
+      icon: Icons.public_outlined,
+      iconColor: const Color(0xFF059669),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: url));
+            showSnackBar("Website URL copied: $url", true);
+          },
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.link, size: 18, color: Color(0xFF1D4ED8)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    url,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: const Color(0xFF1D4ED8),
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.copy_rounded, size: 15, color: Color(0xFF1D4ED8)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 2. HAVE YOU CROWDFUNDED BEFORE?
+  // ===========================================================================
+  Widget _buildHaveYouCrowdfundedSection(NgoDetailsData data) {
+    bool? hasCrowdfunded;
+    if (data.hasCrowdfundedBefore != null) {
+      final s = data.hasCrowdfundedBefore.toString().trim().toLowerCase();
+      if (s == 'true' || s == 'yes' || s == '1') {
+        hasCrowdfunded = true;
+      } else if (s == 'no' || s == 'false' || s == '0') {
+        hasCrowdfunded = false;
+      }
+    }
+
+    final platform = data.crowdfundingPlatformsUsed?.trim() ?? '';
+
+    // If platform name is present, user has crowdfunded before
+    if (hasCrowdfunded == null && platform.isNotEmpty) {
+      hasCrowdfunded = true;
+    }
+
+    // When in this section data is not available then should not show
+    if (hasCrowdfunded == null && platform.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final bool isYes = hasCrowdfunded == true;
+
+    return _buildSectionCard(
+      title: "Have you crowdfunded before?",
+      icon: Icons.campaign_outlined,
+      iconColor: const Color(0xFFE11D48),
+      trailing: _buildYesNoBadge(isYes),
+      child: isYes && platform.isNotEmpty
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.devices_other, size: 16, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Platforms Used: $platform",
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1E293B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildYesNoBadge(bool isYes) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: isYes ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isYes ? const Color(0xFFA7F3D0) : const Color(0xFFCBD5E1)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isYes ? Icons.check_circle_rounded : Icons.cancel_rounded,
+            size: 14,
+            color: isYes ? const Color(0xFF059669) : const Color(0xFF64748B),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isYes ? "Yes" : "No",
+            style: GoogleFonts.poppins(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: isYes ? const Color(0xFF059669) : const Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 3. PURPOSE OF FUNDRAISING/ CAUSE/S SUPPORTED
+  // ===========================================================================
+  Widget _buildPurposeAndCausesSection(NgoDetailsData data) {
+    final purpose = data.purposeOfFundraising?.trim() ?? '';
+    final List<String> causes = (data.causesSupported ?? [])
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    final displayCauses = causes.where((c) => c.toLowerCase() != purpose.toLowerCase()).toList();
+
+    final bool hasData = purpose.isNotEmpty || displayCauses.isNotEmpty;
+    if (!hasData) {
+      return const SizedBox.shrink();
+    }
+
+    return _buildSectionCard(
+      title: "Purpose of fundraising/ Cause/s Supported",
+      icon: Icons.volunteer_activism_outlined,
+      iconColor: const Color(0xFFE11D48),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (purpose.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Text(
+                purpose,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: const Color(0xFF334155),
+                  height: 1.55,
+                ),
+              ),
+            ),
+          if (purpose.isNotEmpty && displayCauses.isNotEmpty)
+            const SizedBox(height: 12),
+          if (displayCauses.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: displayCauses.map((cause) {
+                final meta = _getCauseMeta(cause);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: meta.color.withValues(alpha: 0.08),
+                    border: Border.all(color: meta.color.withValues(alpha: 0.25), width: 1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(meta.icon, size: 14, color: meta.color),
+                      const SizedBox(width: 6),
+                      Text(
+                        cause,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: meta.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // CAUSES WE SUPPORT SECTION (Legacy fallback)
   // ===========================================================================
   Widget _buildCausesSection(NgoDetailsData data) {
     final List<String> causes = (data.causesSupported ?? [])
@@ -1367,7 +1601,7 @@ class _NgoDetailsScreenState extends State<NgoDetailsScreen> {
           if (desig.isNotEmpty)
             _buildInfoRow("Designation", desig),
           if (phone.isNotEmpty)
-            _buildInfoRow("Contact Phone", phone, isCopyable: true),
+            _buildInfoRow("Contact Phone", formatPhoneWithCountryCode(phone), isCopyable: true),
           if (email.isNotEmpty)
             _buildInfoRow("Contact Email", email, isCopyable: true),
           if (authLetter.isNotEmpty) ...[
@@ -2216,8 +2450,10 @@ class _NgoDetailsScreenState extends State<NgoDetailsScreen> {
               if (trailing != null) trailing,
             ],
           ),
-          const SizedBox(height: 14),
-          child,
+          if (child is! SizedBox || child.width != 0 || child.height != 0) ...[
+            const SizedBox(height: 14),
+            child,
+          ],
         ],
       ),
     );
@@ -2399,6 +2635,7 @@ class _NgoDetailsScreenState extends State<NgoDetailsScreen> {
   void _openDocumentPreview(BuildContext context, String title, String url) {
     if (url.trim().isEmpty) return;
     final bool isPdf = url.toLowerCase().contains('.pdf');
+    bool isDownloading = false;
 
     showDialog(
       context: context,
@@ -2489,27 +2726,153 @@ class _NgoDetailsScreenState extends State<NgoDetailsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: url));
-                    Navigator.pop(ctx);
-                    showSnackBar("Document link copied", true);
-                  },
-                  icon: const Icon(Icons.copy, size: 16, color: Colors.white),
-                  label: const Text("Copy Document Link", style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryDeepBlue,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
+              StatefulBuilder(
+                builder: (buttonCtx, setBtnState) {
+                  return SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isDownloading
+                          ? null
+                          : () async {
+                              setBtnState(() => isDownloading = true);
+                              await _downloadDocument(url, title);
+                              if (buttonCtx.mounted) {
+                                setBtnState(() => isDownloading = false);
+                              }
+                            },
+                      icon: isDownloading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.download_rounded, size: 18, color: Colors.white),
+                      label: Text(
+                        isDownloading ? "Downloading..." : "Download",
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryDeepBlue,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _downloadDocument(String url, String title) async {
+    try {
+      final cleanUrl = url.trim();
+      final uri = Uri.tryParse(cleanUrl);
+      if (uri == null || !uri.hasScheme) {
+        showSnackBar("Invalid document URL", false);
+        return;
+      }
+
+      final response = await http.get(uri);
+      if (response.statusCode != 200) {
+        showSnackBar("Failed to download file (HTTP ${response.statusCode})", false);
+        return;
+      }
+
+      final bytes = response.bodyBytes;
+      if (bytes.isEmpty) {
+        showSnackBar("Downloaded file is empty", false);
+        return;
+      }
+
+      final lowerUrl = cleanUrl.toLowerCase();
+      String ext = '.jpg';
+      if (lowerUrl.contains('.pdf')) {
+        ext = '.pdf';
+      } else if (lowerUrl.contains('.png')) {
+        ext = '.png';
+      } else if (lowerUrl.contains('.jpeg')) {
+        ext = '.jpeg';
+      } else if (lowerUrl.contains('.webp')) {
+        ext = '.webp';
+      }
+
+      String fileName = '';
+      if (cleanUrl.contains('#')) {
+        final fragment = Uri.tryParse(cleanUrl)?.fragment ?? '';
+        final match = RegExp(r'name=([^&]+)').firstMatch(fragment);
+        if (match != null) {
+          fileName = Uri.decodeComponent(match.group(1)!);
+        }
+      }
+
+      if (fileName.isEmpty) {
+        final pathWithoutQuery = cleanUrl.split('#').first.split('?').first;
+        final cleanUri = Uri.tryParse(pathWithoutQuery);
+        final lastSeg = cleanUri?.pathSegments.isNotEmpty == true ? cleanUri!.pathSegments.last : '';
+        if (lastSeg.isNotEmpty && (lastSeg.contains('.') || lastSeg.length > 3)) {
+          fileName = lastSeg;
+        }
+      }
+
+      final safeTitle = title.trim().replaceAll(RegExp(r'[^\w\s\.-]'), '').replaceAll(' ', '_');
+      if (fileName.isEmpty) {
+        fileName = '${safeTitle.isNotEmpty ? safeTitle : "document"}_${DateTime.now().millisecondsSinceEpoch}$ext';
+      } else if (!fileName.contains('.')) {
+        fileName += ext;
+      }
+
+      String savedFilePath = '';
+
+      if (Platform.isAndroid) {
+        try {
+          final downloadDir = Directory('/storage/emulated/0/Download');
+          if (!await downloadDir.exists()) {
+            await downloadDir.create(recursive: true);
+          }
+          final file = File('${downloadDir.path}/$fileName');
+          await file.writeAsBytes(bytes);
+          savedFilePath = file.path;
+        } catch (_) {}
+      }
+
+      if (savedFilePath.isEmpty) {
+        try {
+          final dir = await getDownloadsDirectory();
+          if (dir != null) {
+            final file = File('${dir.path}/$fileName');
+            await file.writeAsBytes(bytes);
+            savedFilePath = file.path;
+          }
+        } catch (_) {}
+      }
+
+      if (savedFilePath.isEmpty) {
+        try {
+          final dir = await getApplicationDocumentsDirectory();
+          final file = File('${dir.path}/$fileName');
+          await file.writeAsBytes(bytes);
+          savedFilePath = file.path;
+        } catch (_) {}
+      }
+
+      if (savedFilePath.isNotEmpty) {
+        showSnackBar("Downloaded successfully: $fileName", true);
+        try {
+          await OpenFilex.open(savedFilePath);
+        } catch (_) {}
+      } else {
+        showSnackBar("Could not save file to device storage", false);
+      }
+    } catch (e) {
+      showSnackBar("Error downloading document: ${e.toString()}", false);
+    }
   }
 
   // ===========================================================================

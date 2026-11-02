@@ -84,6 +84,8 @@ class CampaignDetailsData {
   bool? isActive;
   String? verificationStatus;
   String? rejectionReason;
+  String? mobile;
+  String? email;
 
   CampaignDetailsData({
     this.sId,
@@ -114,6 +116,8 @@ class CampaignDetailsData {
     this.isActive,
     this.verificationStatus,
     this.rejectionReason,
+    this.mobile,
+    this.email,
   });
 
   factory CampaignDetailsData.fromJson(Map<String, dynamic> json) {
@@ -175,6 +179,8 @@ class CampaignDetailsData {
       isActive: parsedActive,
       verificationStatus: (json['verificationStatus'] ?? json['verification_status'])?.toString(),
       rejectionReason: (json['rejection_reason'] ?? json['rejectionReason'])?.toString(),
+      mobile: json['mobile']?.toString() ?? json['phone']?.toString(),
+      email: json['email']?.toString(),
     );
   }
 

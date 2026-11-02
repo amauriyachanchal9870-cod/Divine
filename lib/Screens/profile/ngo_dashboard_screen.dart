@@ -267,7 +267,7 @@ class _NgoDashboardScreenState extends State<NgoDashboardScreen> {
                       Icon(Icons.phone_outlined, size: 14, color: AppTheme.textGrey400),
                       const SizedBox(width: 6),
                       Text(
-                        ngo.phone!,
+                        formatPhoneWithCountryCode(ngo.phone!),
                         style: AppFonts.regularText.copyWith(fontSize: 12, color: AppTheme.textGrey500),
                       ),
                     ],

@@ -13,6 +13,7 @@ import '../../Utilities/app_fonts.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_assets.dart';
 import '../../Utilities/helper.dart';
+import 'package:country_picker/country_picker.dart';
 import '../../Controller/profile_controller.dart';
 import '../../Controller/auth_controller.dart';
 import '../../Model/profile_model.dart';
@@ -62,6 +63,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _phoneController;
   String _selectedGender = "Male";
   File? _imageFile;
+  Country _selectedCountry = Country.parse('IN');
 
   // NGO / Corporate common controllers
   late TextEditingController _orgNameController;
@@ -459,20 +461,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryDeepBlue,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: url));
-                  Navigator.pop(ctx);
-                  showSnackBar("Document link copied", true);
-                },
-                icon: const Icon(Icons.copy, size: 16, color: Colors.white),
-                label: const Text("Copy Link", style: TextStyle(color: Colors.white, fontSize: 13)),
-              ),
+              // const SizedBox(height: 16),
+              // ElevatedButton.icon(
+              //   style: ElevatedButton.styleFrom(
+              //     backgroundColor: AppTheme.primaryDeepBlue,
+              //     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              //   ),
+              //   onPressed: () {
+              //     Clipboard.setData(ClipboardData(text: url));
+              //     Navigator.pop(ctx);
+              //     showSnackBar("Document link copied", true);
+              //   },
+              //   icon: const Icon(Icons.copy, size: 16, color: Colors.white),
+              //   label: const Text("Copy Link", style: TextStyle(color: Colors.white, fontSize: 13)),
+              // ),
             ],
           ),
         ),
@@ -1002,7 +1004,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 2),
                 Text("Designation: ${designation.isNotEmpty ? designation : '-'}", style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF1E293B))),
                 const SizedBox(height: 2),
-                Text("Phone: ${phone.isNotEmpty ? phone : '-'}", style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF1E293B))),
+                Text("Phone: ${phone.isNotEmpty ? formatPhoneWithCountryCode(phone) : '-'}", style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF1E293B))),
                 const SizedBox(height: 2),
                 Text("Email: ${email.isNotEmpty ? email : '-'}", style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF1E293B))),
                 const SizedBox(height: 2),
@@ -1279,7 +1281,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ] else if (existingUrl != null && existingUrl.isNotEmpty) ...[
                 const SizedBox(width: 8),
-                _buildDocChip("Current $certTitle", existingUrl),
+                Expanded(
+                  child: _buildDocChip("$certTitle", existingUrl),
+                ),
               ],
             ],
           ),
@@ -1798,7 +1802,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 2),
                 Text("Department: ${dept.isNotEmpty ? dept : '-'}", style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF1E293B))),
                 const SizedBox(height: 2),
-                Text("Phone: ${phone.isNotEmpty ? phone : '-'}", style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF1E293B))),
+                Text("Phone: ${phone.isNotEmpty ? formatPhoneWithCountryCode(phone) : '-'}", style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF1E293B))),
                 const SizedBox(height: 2),
                 Text("Email: ${email.isNotEmpty ? email : '-'}", style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF1E293B))),
                 if (linkedIn.isNotEmpty) ...[
@@ -2085,8 +2089,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     int? maxLength,
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
+    bool readOnly = false,
+    bool enabled = true,
   }) {
     bool isPhone = keyboardType == TextInputType.phone || label.toLowerCase().contains('phone');
+    final bool isEditable = !readOnly && enabled;
+
+    Widget fieldWidget = TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      readOnly: readOnly,
+      enabled: enabled,
+      maxLength: maxLength ?? (isPhone ? 10 : null),
+      inputFormatters: inputFormatters ?? (isPhone ? [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(10),
+      ] : null),
+      decoration: InputDecoration(
+        hintText: hint,
+        counterText: isPhone ? "" : null,
+        hintStyle: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppTheme.fieldBorderColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppTheme.fieldBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppTheme.primaryDeepBlue),
+        ),
+      ),
+      validator: validator,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2095,35 +2135,58 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: Colors.black87),
         ),
         const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          maxLength: maxLength ?? (isPhone ? 10 : null),
-          inputFormatters: inputFormatters ?? (isPhone ? [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(10),
-          ] : null),
-          decoration: InputDecoration(
-            hintText: hint,
-            counterText: isPhone ? "" : null,
-            hintStyle: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 14),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppTheme.fieldBorderColor),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppTheme.fieldBorderColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppTheme.primaryDeepBlue),
-            ),
-          ),
-          validator: validator,
-        ),
+        if (isPhone)
+          Row(
+            children: [
+              GestureDetector(
+                onTap: isEditable
+                    ? () {
+                        showCountryPicker(
+                          context: context,
+                          showPhoneCode: true,
+                          onSelect: (Country country) {
+                            setState(() {
+                              _selectedCountry = country;
+                            });
+                          },
+                        );
+                      }
+                    : null,
+                child: Container(
+                  height: 48,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: isEditable ? Colors.white : const Color(0xFFF1F5F9),
+                    border: Border.all(color: AppTheme.fieldBorderColor),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_selectedCountry.flagEmoji, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 4),
+                      Text(
+                        "+${_selectedCountry.phoneCode}",
+                        style: AppFonts.semiBoldText.copyWith(
+                          fontSize: 13,
+                          color: isEditable ? AppTheme.blackColor : AppTheme.textGrey400,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      if (isEditable)
+                        Icon(Icons.arrow_drop_down, color: AppTheme.textGrey400)
+                      else
+                        Icon(Icons.lock_outline, size: 13, color: AppTheme.textGrey400),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: fieldWidget),
+            ],
+          )
+        else
+          fieldWidget,
       ],
     );
   }

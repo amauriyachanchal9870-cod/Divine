@@ -344,7 +344,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (displayPhone.isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
-                          displayPhone, 
+                          formatPhoneWithCountryCode(displayPhone), 
                           style: AppFonts.regularText.copyWith(fontSize: 11, color: AppTheme.textGrey400),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

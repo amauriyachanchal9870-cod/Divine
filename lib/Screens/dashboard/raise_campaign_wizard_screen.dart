@@ -24,6 +24,7 @@ import '../../Controller/profile_controller.dart';
 import '../../Controller/home_controller.dart';
 import '../../Controller/active_campaigns_controller.dart';
 import '../../Controller/my_campaigns_controller.dart';
+import 'package:country_picker/country_picker.dart';
 import 'main_navigation_screen.dart';
 
 class RaiseCampaignWizardScreen extends StatefulWidget {
@@ -39,6 +40,9 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _mobileController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  Country _selectedCountry = Country.parse('IN');
   DateTime? _selectedDateTime;
   final TextEditingController _holderNameController = TextEditingController();
   final TextEditingController _bankNameController = TextEditingController();
@@ -120,6 +124,23 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
           setState(() {
             _titleController.text = data.title ?? '';
             _selectedCategory = data.category;
+            final mob = data.mobile ?? (jsonResponse['data']?['mobile']?.toString() ?? jsonResponse['data']?['phone']?.toString() ?? '');
+            if (mob.isNotEmpty) {
+              if (mob.startsWith('+')) {
+                final clean = mob.replaceFirst('+', '');
+                if (clean.startsWith('91') && clean.length > 2) {
+                  _selectedCountry = Country.parse('IN');
+                  _mobileController.text = clean.substring(2).trim();
+                } else {
+                  _mobileController.text = mob;
+                }
+              } else {
+                _mobileController.text = mob;
+              }
+            } else {
+              _mobileController.text = '';
+            }
+            _emailController.text = data.email ?? (jsonResponse['data']?['email']?.toString() ?? '');
 
             // Extract numeric target amount
             final rawGoal = data.goal ?? '';
@@ -258,6 +279,8 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
     _dateController.dispose();
     _titleController.dispose();
     _amountController.dispose();
+    _mobileController.dispose();
+    _emailController.dispose();
     _holderNameController.dispose();
     _bankNameController.dispose();
     _accountNumberController.dispose();
@@ -272,6 +295,9 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
       _titleController.clear();
       _amountController.clear();
       _dateController.clear();
+      _mobileController.clear();
+      _emailController.clear();
+      _selectedCountry = Country.parse('IN');
       _holderNameController.clear();
       _bankNameController.clear();
       _accountNumberController.clear();
@@ -427,6 +453,23 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
       }
       if (_dateController.text.trim().isEmpty) {
         showSnackBar("Please select an end date.", false);
+        return;
+      }
+      if (_mobileController.text.trim().isEmpty) {
+        showSnackBar("Please enter mobile number.", false);
+        return;
+      }
+      if (_mobileController.text.trim().length != 10) {
+        showSnackBar("Please enter a valid 10-digit mobile number.", false);
+        return;
+      }
+      final emailText = _emailController.text.trim();
+      if (emailText.isEmpty) {
+        showSnackBar("Please enter email address.", false);
+        return;
+      }
+      if (!GetUtils.isEmail(emailText) || !RegExp(r"^[\w\.\-]+@[\w\-]+(\.[a-zA-Z]{2,})+$").hasMatch(emailText)) {
+        showSnackBar("Please enter a valid email address.", false);
         return;
       }
       if (_storyController.document.toPlainText().trim().isEmpty) {
@@ -683,6 +726,16 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
           ),
           const SizedBox(height: 16),
           _buildTextField(AppString.endDate.tr, AppString.selectDate.tr, suffixIcon: const Icon(Icons.calendar_today, size: 16, color: Colors.grey), controller: _dateController, readOnly: true, onTap: () => _selectDate(context)),
+          const SizedBox(height: 16),
+          _buildMobileField(),
+          const SizedBox(height: 16),
+          _buildTextField(
+            "Email Address",
+            "Enter Email Address",
+            prefixIcon: const Icon(Icons.email_outlined, size: 16, color: Colors.grey),
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+          ),
           const SizedBox(height: 24),
           Text(AppString.campaignStory.tr, style: AppFonts.semiBoldText.copyWith(fontSize: 14)),
           const SizedBox(height: 12),
@@ -1212,6 +1265,23 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
   }
 
   Future<void> _submitCampaign() async {
+    if (_mobileController.text.trim().isEmpty) {
+      showSnackBar("Please enter mobile number.", false);
+      return;
+    }
+    if (_mobileController.text.trim().length != 10) {
+      showSnackBar("Please enter a valid 10-digit mobile number.", false);
+      return;
+    }
+    final emailText = _emailController.text.trim();
+    if (emailText.isEmpty) {
+      showSnackBar("Please enter email address.", false);
+      return;
+    }
+    if (!GetUtils.isEmail(emailText) || !RegExp(r"^[\w\.\-]+@[\w\-]+(\.[a-zA-Z]{2,})+$").hasMatch(emailText)) {
+      showSnackBar("Please enter a valid email address.", false);
+      return;
+    }
     if (_holderNameController.text.trim().isEmpty) {
       showSnackBar("Please enter account holder name.", false);
       return;
@@ -1388,6 +1458,8 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
           "category": _selectedCategory ?? "Medical",
           "description": _storyController.document.toPlainText().trim(),
           "goal": double.tryParse(_amountController.text.trim()) ?? 75000,
+          "mobile": _mobileController.text.trim(),
+          "email": _emailController.text.trim(),
           "imageUrl": imageUrls.isNotEmpty ? imageUrls.first : (_existingMainImageUrl ?? "https://files.catbox.moe/q4i0t0.jpg"),
           "images": imageUrls,
           "oneTimeOrMonthly": "One-Time",
@@ -1463,6 +1535,8 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
         "description": _storyController.document.toPlainText().trim(),
         "oneTimeOrMonthly": "One-Time",
         "endDate": endDateStr,
+        "mobile": _mobileController.text.trim(),
+        "email": _emailController.text.trim(),
         "images": imageUrls,
         "video": "https://www.w3schools.com/html/mov_bbb.mp4",
         "documents": documentUrls,
@@ -1563,6 +1637,23 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
                       showSnackBar("Please select an end date.", false);
                       return;
                     }
+                    if (_mobileController.text.trim().isEmpty) {
+                      showSnackBar("Please enter mobile number.", false);
+                      return;
+                    }
+                    if (_mobileController.text.trim().length != 10) {
+                      showSnackBar("Please enter a valid 10-digit mobile number.", false);
+                      return;
+                    }
+                    final emailText = _emailController.text.trim();
+                    if (emailText.isEmpty) {
+                      showSnackBar("Please enter email address.", false);
+                      return;
+                    }
+                    if (!GetUtils.isEmail(emailText) || !RegExp(r"^[\w\.\-]+@[\w\-]+(\.[a-zA-Z]{2,})+$").hasMatch(emailText)) {
+                      showSnackBar("Please enter a valid email address.", false);
+                      return;
+                    }
                     if (_storyController.document.toPlainText().trim().isEmpty) {
                       showSnackBar("Please write a campaign story.", false);
                       return;
@@ -1646,6 +1737,100 @@ class _RaiseCampaignWizardScreenState extends State<RaiseCampaignWizardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMobileField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Mobile Number", style: AppFonts.semiBoldText.copyWith(fontSize: 13, color: Colors.black87)),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: () {
+                showCountryPicker(
+                  context: context,
+                  showPhoneCode: true,
+                  countryListTheme: CountryListThemeData(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    inputDecoration: InputDecoration(
+                      hintText: 'Search country',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: AppTheme.fieldBorderColor),
+                      ),
+                    ),
+                  ),
+                  onSelect: (Country country) {
+                    setState(() {
+                      _selectedCountry = country;
+                    });
+                  },
+                );
+              },
+              child: Container(
+                height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: AppTheme.fieldBorderColor),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_selectedCountry.flagEmoji, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 4),
+                    Text(
+                      "+${_selectedCountry.phoneCode}",
+                      style: AppFonts.semiBoldText.copyWith(
+                        fontSize: 13,
+                        color: AppTheme.blackColor,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(Icons.arrow_drop_down, color: AppTheme.textGrey400),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _mobileController,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
+                decoration: InputDecoration(
+                  hintText: "Enter Mobile Number",
+                  hintStyle: AppFonts.regularText.copyWith(color: AppTheme.textGrey400, fontSize: 14),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppTheme.fieldBorderColor),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppTheme.fieldBorderColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppTheme.primaryDeepBlue),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

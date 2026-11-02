@@ -820,6 +820,10 @@ class AuthController extends GetxController {
         "bankBranch": bankBranch,
         "bankAccountNumber": bankAccountNumber,
         "bankIFSC": bankIFSC,
+        if (processedData['registration12A'] != null)
+          "registration12A": processedData['registration12A'],
+        if (processedData['registration80G'] != null)
+          "registration80G": processedData['registration80G'],
       };
 
       if (cancelledChequeDoc != null) {

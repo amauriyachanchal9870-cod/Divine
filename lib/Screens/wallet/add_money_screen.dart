@@ -9,6 +9,7 @@ import '../../Utilities/app_theme.dart';
 import '../../Utilities/helper.dart';
 import '../../Routes/my_routes.dart';
 import '../../Services/razorpay_service.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../dashboard/main_navigation_screen.dart';
 
 class AddMoneyScreen extends StatefulWidget {
@@ -172,7 +173,19 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
                           }
                         },
                         onFailure: (response) {
-                          showSnackBar(response.message ?? "Payment Failed. Please try again.", false);
+                          if (response.code == Razorpay.PAYMENT_CANCELLED) {
+                            return;
+                          }
+                          final msg = response.message?.trim();
+                          if (msg == null ||
+                              msg.isEmpty ||
+                              msg.toLowerCase() == 'undefined' ||
+                              msg.toLowerCase() == 'null' ||
+                              msg.toLowerCase().contains('cancelled') ||
+                              msg.toLowerCase().contains('canceled')) {
+                            return;
+                          }
+                          showSnackBar(msg, false);
                         },
                       );
                     },

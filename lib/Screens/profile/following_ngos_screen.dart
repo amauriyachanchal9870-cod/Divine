@@ -8,6 +8,7 @@ import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_string.dart';
 import '../../Utilities/app_assets.dart';
 import '../../Utilities/app_fonts.dart';
+import '../../Utilities/helper.dart';
 import '../../Routes/my_routes.dart';
 import '../../Controller/follows_controller.dart';
 import '../../Controller/banner_controller.dart';
@@ -122,7 +123,7 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
             onPressed: () => Get.back(),
           ),
           title: Text(
-            AppString.follows.tr, 
+              _isNgoUser ? AppString.socialNetwork.tr : AppString.following.tr,
             style: AppFonts.titleStyle.copyWith(fontSize: 18, color: Colors.black87)
           ),
           centerTitle: false,
@@ -540,7 +541,7 @@ class _FollowingNgosScreenState extends State<FollowingNgosScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
-                  item.name?.isNotEmpty == true ? item.name! : (item.phone ?? ''),
+                  item.name?.isNotEmpty == true ? item.name! : formatPhoneWithCountryCode(item.phone),
                   style: AppFonts.mediumText.copyWith(fontSize: 14, color: Colors.black87),
                 ),
               ),

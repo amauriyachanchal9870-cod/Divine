@@ -243,7 +243,7 @@ class _ReferralRewardsScreenState extends State<ReferralRewardsScreen> {
                 itemCount: referralsList.length,
                 itemBuilder: (context, index) {
                   final item = referralsList[index];
-                  final name = item.name ?? item.phone ?? item.email ?? item.title ?? "Friend";
+                  final name = item.name ?? (item.phone != null && item.phone!.isNotEmpty ? formatPhoneWithCountryCode(item.phone) : (item.email ?? item.title ?? "Friend"));
                   final date = _formatDate(item.createdAt);
                   final coinsEarned = item.coins != null && item.coins > 0 
                       ? "+${item.coins} Coins" 

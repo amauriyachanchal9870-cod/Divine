@@ -142,25 +142,25 @@ class _NgoProfileDetailScreenState extends State<NgoProfileDetailScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryDeepBlue,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    elevation: 0,
-                  ),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: url));
-                    Navigator.pop(ctx);
-                    showSnackBar("Document link copied to clipboard", true);
-                  },
-                  icon: const Icon(Icons.copy, size: 16, color: Colors.white),
-                  label: Text("Copy Document Link", style: GoogleFonts.poppins(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
-              ),
+              // const SizedBox(height: 18),
+              // SizedBox(
+              //   width: double.infinity,
+              //   child: ElevatedButton.icon(
+              //     style: ElevatedButton.styleFrom(
+              //       backgroundColor: AppTheme.primaryDeepBlue,
+              //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              //       padding: const EdgeInsets.symmetric(vertical: 12),
+              //       elevation: 0,
+              //     ),
+              //     onPressed: () {
+              //       Clipboard.setData(ClipboardData(text: url));
+              //       Navigator.pop(ctx);
+              //       showSnackBar("Document link copied to clipboard", true);
+              //     },
+              //     icon: const Icon(Icons.copy, size: 16, color: Colors.white),
+              //     label: Text("Copy Document Link", style: GoogleFonts.poppins(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              //   ),
+              // ),
             ],
           ),
         ),
@@ -511,7 +511,7 @@ class _NgoProfileDetailScreenState extends State<NgoProfileDetailScreen> {
                       if (email.isNotEmpty)
                         _buildHeroMetaPill(Icons.mail_outline_rounded, email),
                       if (phone.isNotEmpty)
-                        _buildHeroMetaPill(Icons.phone_outlined, phone),
+                        _buildHeroMetaPill(Icons.phone_outlined, formatPhoneWithCountryCode(phone)),
                     ],
                   ),
                 ],
@@ -1123,7 +1123,7 @@ class _NgoProfileDetailScreenState extends State<NgoProfileDetailScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              phone,
+                              formatPhoneWithCountryCode(phone),
                               style: GoogleFonts.poppins(fontSize: 12.5, color: const Color(0xFF334155)),
                             ),
                           ),
@@ -1666,7 +1666,7 @@ class _NgoProfileDetailScreenState extends State<NgoProfileDetailScreen> {
               ],
             ),
             const Divider(height: 18, color: Color(0xFFE2E8F0)),
-            _buildSubfieldRow("Phone Number", phone.isNotEmpty ? phone : "Not Provided"),
+            _buildSubfieldRow("Phone Number", phone.isNotEmpty ? formatPhoneWithCountryCode(phone) : "Not Provided"),
             _buildSubfieldRow("E-mail ID", email.isNotEmpty ? email : "Not Provided"),
             _buildSubfieldRow("PAN", pan.isNotEmpty ? pan : "Not Provided"),
             _buildSubfieldRow("Aadhar / Other ID", aadhar.isNotEmpty ? aadhar : "Not Provided"),

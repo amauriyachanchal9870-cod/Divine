@@ -479,7 +479,7 @@ class NgoDetailsData {
       organizationType: parseString('organizationType'),
       legalName: parseString('legalName', ['organizationName']),
       isRegisteredNonProfit: parseString('isRegisteredNonProfit', ['registeredType', 'typeOfNgo', 'organizationType']),
-      websiteUrl: parseString('websiteUrl', ['website', 'url', 'webUrl']),
+      websiteUrl: parseString('websiteUrl', ['website', 'url', 'webUrl', 'organizationWebsite', 'website_url']),
       bannerImage: parseString('bannerImage', ['coverImage', 'banner', 'backgroundImage']),
       registrationCertificate: parseString('registrationCertificate', ['addressCertificate', 'certificate']),
       addressCertificate: parseString('addressCertificate'),
@@ -511,7 +511,7 @@ class NgoDetailsData {
       designation: authDesig,
       awards: awardsList,
       causesSupported: causesList,
-      purposeOfFundraising: parseString('purposeOfFundraising'),
+      purposeOfFundraising: parseString('purposeOfFundraising', ['purpose', 'fundraisingPurpose', 'purpose_of_fundraising']),
       csrFocusAreas: rawCauses,
       lastFinancialYearBudget: parseString('lastFinancialYearBudget', ['budget']),
       donorDatabaseStrength: parseString('donorDatabaseStrength'),
@@ -536,7 +536,8 @@ class NgoDetailsData {
       hasCrowdfundedBefore: json['hasCrowdfundedBefore'] ??
           userMap?['hasCrowdfundedBefore'] ??
           ngoMap?['hasCrowdfundedBefore'] ??
-          profileMap?['hasCrowdfundedBefore'],
+          profileMap?['hasCrowdfundedBefore'] ??
+          bankMap?['hasCrowdfundedBefore'],
       crowdfundingPlatformsUsed: parseString('crowdfundingPlatformsUsed', ['crowdfundingPlatforms']),
       campaignPlanningTimeframe: parseString('campaignPlanningTimeframe'),
       declarations: json['declarations'] ??

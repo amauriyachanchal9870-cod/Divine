@@ -236,3 +236,40 @@ showSnackBar(String? title, bool? check) {
     barBlur: 0,
   );
 }
+
+/// Formats a phone number to consistently display with country code (e.g. +91 9876543210).
+String formatPhoneWithCountryCode(String? rawPhone, {String defaultCountryCode = '+91'}) {
+  if (rawPhone == null) return '';
+  final trimmed = rawPhone.trim();
+  if (trimmed.isEmpty) return '';
+
+  // If already formatted with space after country code (e.g. "+91 9876543210" or "+1 5551234567")
+  final withSpaceMatch = RegExp(r'^(\+\d{1,4})\s+(.+)$').firstMatch(trimmed);
+  if (withSpaceMatch != null) {
+    return '${withSpaceMatch.group(1)} ${withSpaceMatch.group(2)!.trim()}';
+  }
+
+  // If starts with '+' but has no space (e.g. "+919876543210" or "+15551234567")
+  if (trimmed.startsWith('+')) {
+    final digits = trimmed.substring(1).replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('91') && digits.length == 12) {
+      return '+91 ${digits.substring(2)}';
+    } else if (digits.startsWith('1') && digits.length == 11) {
+      return '+1 ${digits.substring(1)}';
+    } else if (digits.length > 10) {
+      final codeLen = digits.length - 10;
+      return '+${digits.substring(0, codeLen)} ${digits.substring(codeLen)}';
+    }
+    return trimmed;
+  }
+
+  // If phone starts with 91 and has 12 digits (e.g. 919876543210)
+  final onlyDigits = trimmed.replaceAll(RegExp(r'\D'), '');
+  if (onlyDigits.length == 12 && onlyDigits.startsWith('91')) {
+    return '+91 ${onlyDigits.substring(2)}';
+  }
+
+  // Prepend default country code
+  final cleanCode = defaultCountryCode.startsWith('+') ? defaultCountryCode : '+$defaultCountryCode';
+  return '$cleanCode $trimmed';
+}

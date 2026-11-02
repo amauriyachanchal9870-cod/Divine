@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dotted_border/dotted_border.dart';
+import 'package:country_picker/country_picker.dart';
 import '../../Utilities/app_theme.dart';
 import '../../Utilities/app_fonts.dart';
 import '../../Utilities/custom_button.dart';
@@ -130,6 +131,7 @@ class _NgoBankDetailsScreenState extends State<NgoBankDetailsScreen> {
   final TextEditingController csrOfficerDepartmentController = TextEditingController();
   final TextEditingController csrOfficerEmailController = TextEditingController();
   final TextEditingController csrOfficerPhoneController = TextEditingController();
+  Country _csrOfficerCountry = Country.parse('IN');
   final TextEditingController csrOfficerLinkedInController = TextEditingController();
 
   // Item 19: What is your organization’s total employee strength? (Corporate options)
@@ -357,19 +359,64 @@ class _NgoBankDetailsScreenState extends State<NgoBankDetailsScreen> {
 
                         Text("e) Phone Number", style: AppFonts.smallText.copyWith(color: AppTheme.textGrey500)),
                         const SizedBox(height: 4),
-                        CommonTextField(
-                          controller: csrOfficerPhoneController,
-                          hintText: "Enter Phone Number",
-                          keyboardType: TextInputType.phone,
-                          inputFormatters: [LengthLimitingTextInputFormatter(10), FilteringTextInputFormatter.digitsOnly],
-                          useBorder: true,
-                          borderColor: AppTheme.fieldBorderColor,
-                          borderRadius: 8,
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) return 'Please enter phone number';
-                            if (val.trim().length != 10) return 'Phone number must be 10 digits';
-                            return null;
-                          },
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                showCountryPicker(
+                                  context: context,
+                                  showPhoneCode: true,
+                                  onSelect: (Country country) {
+                                    setState(() {
+                                      _csrOfficerCountry = country;
+                                    });
+                                  },
+                                );
+                              },
+                              child: Container(
+                                height: 48,
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  border: Border.all(color: AppTheme.fieldBorderColor),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(_csrOfficerCountry.flagEmoji, style: const TextStyle(fontSize: 18)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      "+${_csrOfficerCountry.phoneCode}",
+                                      style: AppFonts.semiBoldText.copyWith(
+                                        fontSize: 13,
+                                        color: AppTheme.blackColor,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Icon(Icons.arrow_drop_down, color: AppTheme.textGrey400),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: CommonTextField(
+                                controller: csrOfficerPhoneController,
+                                hintText: "Enter Phone Number",
+                                keyboardType: TextInputType.phone,
+                                inputFormatters: [LengthLimitingTextInputFormatter(10), FilteringTextInputFormatter.digitsOnly],
+                                useBorder: true,
+                                borderColor: AppTheme.fieldBorderColor,
+                                borderRadius: 8,
+                                validator: (val) {
+                                  if (val == null || val.trim().isEmpty) return 'Please enter phone number';
+                                  if (val.trim().length != 10) return 'Phone number must be 10 digits';
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
 
